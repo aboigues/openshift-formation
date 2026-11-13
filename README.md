@@ -46,6 +46,7 @@ La boutique en ligne de Telemach : une vitrine **web**, une **api**, et bientôt
 | Barrière | Commande | Cluster |
 |---|---|---|
 | Contrôles statiques | `./scripts/lint.sh` | non |
+| Sécurité : secrets, manifestes, code Go, images | `./scripts/securite.sh` | non |
 | Images et prémisses | job `images` de la CI | non |
 | Tous les TP | `./scripts/test-all.sh` | oui |
 

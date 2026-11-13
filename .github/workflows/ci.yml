@@ -1,7 +1,11 @@
 name: TP — vérification
 
-# Trois barrières, de la plus rapide à la plus lente :
-#   1. lint    : contrôles statiques (trous, YAML, labels, shellcheck).
+# Quatre barrières :
+#   1. lint     : contrôles statiques (trous, YAML, labels, shellcheck).
+#   1 bis. securite : secrets, fautes de configuration des manifestes et des
+#                Dockerfile, vulnérabilités du code Go et des images
+#                (scripts/securite.sh). Trivy tourne depuis son image officielle,
+#                épinglée ; les actions GitHub sont épinglées par empreinte.
 #   2. images  : tout ce qui se prouve sans OpenShift. Les images sont construites
 #                puis lancées avec un UID arbitraire et le groupe 0, comme sur
 #                OpenShift ; les prémisses des TP (ce qui doit échouer) sont rejouées.
@@ -29,16 +33,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Contrôles statiques
         run: ./scripts/lint.sh
+
+  securite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Secrets, manifestes, code Go, images
+        run: MOTEUR=docker ./scripts/securite.sh
 
   images:
     needs: lint
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Go — gofmt et go vet (dans go-toolset, la chaîne des TP)
         run: |
@@ -105,14 +117,14 @@ jobs:
           MOTEUR=docker ./builders/telemach-go-builder/test/run
 
   cluster:
-    needs: images
+    needs: [images, securite]
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
       OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
       OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Cluster configuré ?
         id: cluster
         run: |

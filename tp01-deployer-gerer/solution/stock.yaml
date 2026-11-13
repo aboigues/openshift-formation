@@ -40,6 +40,12 @@ spec:
         app: stock
         app.kubernetes.io/part-of: telemarche
     spec:
+      # Durcissement standard du dépôt : ne pas modifier. Ni runAsUser ni
+      # fsGroup : c'est OpenShift (restricted-v2) qui les choisit.
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: stock
           # Valeur d'attente : le déclencheur la remplace par l'image que désigne l'ImageStream.
@@ -47,6 +53,11 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           resources:
             requests:
               cpu: 50m

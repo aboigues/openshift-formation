@@ -27,6 +27,12 @@ spec:
         app: api
         app.kubernetes.io/part-of: telemarche
     spec:
+      # Durcissement standard du dépôt : ne pas modifier. Ni runAsUser ni
+      # fsGroup : c'est OpenShift (restricted-v2) qui les choisit.
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: api
           # Le nom complet, registre compris : sur OpenShift, un nom court peut
@@ -38,6 +44,11 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           resources:
             requests:
               cpu: 50m
