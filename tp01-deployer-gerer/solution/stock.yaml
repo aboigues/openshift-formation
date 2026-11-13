@@ -1,0 +1,70 @@
+# Le service « stock », converti de DeploymentConfig en Deployment.
+# L'ImageStream et le Service ne changent pas : seul l'objet de déploiement est déprécié.
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: telemarche-api
+  labels:
+    app.kubernetes.io/part-of: telemarche
+spec:
+  tags:
+    - name: "1.0"
+      from:
+        kind: DockerImage
+        name: docker.io/telemachlearning/telemarche-api:1.0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stock
+  labels:
+    app: stock
+    app.kubernetes.io/part-of: telemarche
+  annotations:
+    # Le déclencheur ImageChange d'une DeploymentConfig devient une annotation :
+    # quand l'étiquette telemarche-api:1.0 change, OpenShift réécrit l'image du
+    # conteneur « stock », ce qui lance un déploiement.
+    image.openshift.io/triggers: >-
+      [{"from":{"kind":"ImageStreamTag","name":"telemarche-api:1.0"},
+        "fieldPath":"spec.template.spec.containers[?(@.name==\"stock\")].image"}]
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stock
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: stock
+        app.kubernetes.io/part-of: telemarche
+    spec:
+      containers:
+        - name: stock
+          # Valeur d'attente : le déclencheur la remplace par l'image que désigne l'ImageStream.
+          image: telemarche-api:1.0
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stock
+  labels:
+    app: stock
+    app.kubernetes.io/part-of: telemarche
+spec:
+  selector:
+    app: stock
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

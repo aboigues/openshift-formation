@@ -1,0 +1,4 @@
+#!/bin/bash
+# run — lance l'application construite par assemble.
+# exec : l'application remplace ce script et reçoit donc SIGTERM à l'arrêt du pod.
+exec /opt/app-root/app "$@"

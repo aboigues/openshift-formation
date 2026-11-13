@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Vérifie l'image de construction sur le poste, sans l'outil s2i : on rejoue à
+# la main ce que fait un build S2I (injecter les sources, lancer assemble,
+# prendre run pour commande), puis on démarre le résultat sous un UID arbitraire.
+#
+#   ./test/run            # podman, ou docker à défaut
+set -euo pipefail
+ICI="$(cd "$(dirname "$0")/.." && pwd)"
+RACINE="$(cd "$ICI/../.." && pwd)"
+MOTEUR="${MOTEUR:-$(command -v podman || command -v docker || true)}"
+[ -n "$MOTEUR" ] || { echo "ni podman ni docker" >&2; exit 1; }
+
+"$MOTEUR" build -q -t telemach-go-builder:test "$ICI" >/dev/null
+echo "✓ image de construction construite"
+
+"$MOTEUR" run --rm --user 12345:0 telemach-go-builder:test | grep -q COMPOSANT
+echo "✓ sans sources, l'image affiche son mode d'emploi"
+
+tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"; "$MOTEUR" rm -f telemach-go-builder-test >/dev/null 2>&1 || true' EXIT
+for composant in web api; do
+  mkdir -p "$tmp/$composant"; cp -R "$RACINE/apps/telemarche" "$tmp/$composant/src"
+  cat > "$tmp/$composant/Dockerfile" <<FIN
+FROM telemach-go-builder:test
+COPY --chown=1001:0 src /tmp/src
+ENV COMPOSANT=$composant APP_VERSION=test
+RUN /usr/libexec/s2i/assemble
+CMD ["/usr/libexec/s2i/run"]
+FIN
+  "$MOTEUR" build -q -t "telemarche-$composant:s2i-test" "$tmp/$composant" >/dev/null
+  echo "✓ $composant construit par assemble"
+done
+
+"$MOTEUR" run -d --name telemach-go-builder-test --user 12345:0 -p 18089:8080 telemarche-web:s2i-test >/dev/null
+sleep 3
+curl -fsS -m 5 http://localhost:18089/version | grep -q '"version":"test"'
+echo "✓ la vitrine construite démarre sous un UID arbitraire et répond"
+
+if printf 'FROM telemach-go-builder:test\nCOPY --chown=1001:0 src /tmp/src\nRUN /usr/libexec/s2i/assemble\n' > "$tmp/web/Dockerfile" \
+   && "$MOTEUR" build -q -t telemarche-sans-composant:s2i-test "$tmp/web" >/dev/null 2>&1; then
+  echo "✗ sans COMPOSANT, assemble aurait dû échouer" >&2; exit 1
+fi
+echo "✓ sans COMPOSANT, assemble échoue franchement"

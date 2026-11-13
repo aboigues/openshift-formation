@@ -1,0 +1,4 @@
+#!/bin/bash
+# .s2i/bin/run — lance l'application construite par assemble.
+# exec : sans lui, c'est ce script qui recevrait SIGTERM, pas l'application.
+______ /opt/app-root/gobinary      # TODO 3 : le mot qui fait de l'application le processus n° 1

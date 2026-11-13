@@ -1,0 +1,48 @@
+# La recette de construction de l'API. Quatre questions, quatre sections :
+# d'où vient le code (source), comment construire (strategy), où publier
+# (output), quand construire (triggers).
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: api
+  labels:
+    app.kubernetes.io/part-of: telemarche
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: api
+  labels:
+    app.kubernetes.io/part-of: telemarche
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/aboigues/openshift-formation
+      ref: main
+    contextDir: ______             # TODO 1 : le dossier de l'application dans le dépôt
+  strategy:
+    type: ______                   # TODO 2 : la stratégie qui exécute un Dockerfile
+    dockerStrategy:
+      dockerfilePath: ______       # TODO 3 : le Dockerfile de l'API, dans apps/telemarche
+      buildArgs:
+        - name: APP_VERSION        # la valeur de « ARG APP_VERSION » du Dockerfile
+          value: "1.2"
+  output:
+    to:
+      kind: ______                 # TODO 4 : publier dans le registre intégré, par un ImageStream
+      name: ______                 # TODO 5 : l'étiquette que suit le Deployment
+  triggers:
+    - type: ______                 # TODO 6 : un build part dès que le BuildConfig est créé
+  # Le garde-fou : exécuté DANS l'image qui vient d'être construite, avant sa
+  # publication. Code de retour différent de 0 : l'image n'est pas poussée.
+  # Forme « command » : aucun shell n'est nécessaire dans l'image.
+  postCommit:
+    command: ["______"]            # TODO 7 : le binaire de l'API dans l'image
+    args: ["______"]               # TODO 8 : l'option qui lui fait contrôler ce qu'il embarque
+  runPolicy: Serial
+  successfulBuildsHistoryLimit: 3
+  failedBuildsHistoryLimit: 3
+  resources:
+    limits:
+      memory: 2Gi

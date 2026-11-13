@@ -1,0 +1,79 @@
+# L'API, déployée à partir de l'image que construit le BuildConfig.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels:
+    app: api
+    app.kubernetes.io/part-of: telemarche
+  annotations:
+    # Le lien entre la construction et le déploiement : dès que l'étiquette
+    # api:latest change, OpenShift réécrit l'image du conteneur « api ».
+    # C'est la forme écrite de :
+    #   oc set triggers deployment/api --from-image=api:latest -c api
+    image.openshift.io/triggers: >-
+      [{"from":{"kind":"ImageStreamTag","name":"api:latest"},
+        "fieldPath":"spec.template.spec.containers[?(@.name==\"api\")].image"}]
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+        app.kubernetes.io/part-of: telemarche
+    spec:
+      containers:
+        - name: api
+          # Valeur d'attente, remplacée par le déclencheur. Tant qu'aucune
+          # image n'a été construite, le pod ne peut pas démarrer : c'est normal.
+          image: api:latest
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 2
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  labels:
+    app: api
+    app.kubernetes.io/part-of: telemarche
+spec:
+  selector:
+    app: api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+# Une Route, pour interroger l'API depuis le poste pendant le TP.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: api
+  labels:
+    app: api
+    app.kubernetes.io/part-of: telemarche
+spec:
+  to:
+    kind: Service
+    name: api
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

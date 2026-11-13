@@ -1,0 +1,74 @@
+# L'héritage : le service « stock », déployé il y a des années sur OpenShift 3
+# par une DeploymentConfig. Elle fonctionne encore, mais l'objet est déprécié
+# depuis OpenShift 4.14 : à vous de le convertir en Deployment (starter/stock.yaml).
+#
+#   oc apply -f heritage/stock-dc.yaml
+#   oc get dc,rc,pods -l app=stock
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: telemarche-api
+  labels:
+    app.kubernetes.io/part-of: telemarche
+spec:
+  tags:
+    - name: "1.0"
+      from:
+        kind: DockerImage
+        name: docker.io/telemachlearning/telemarche-api:1.0
+---
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  name: stock
+  labels:
+    app: stock
+    app.kubernetes.io/part-of: telemarche
+spec:
+  replicas: 1
+  selector:
+    app: stock
+  strategy:
+    type: Rolling
+  triggers:
+    - type: ConfigChange
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames: [stock]
+        from:
+          kind: ImageStreamTag
+          name: telemarche-api:1.0
+  template:
+    metadata:
+      labels:
+        app: stock
+        app.kubernetes.io/part-of: telemarche
+    spec:
+      containers:
+        - name: stock
+          image: " "
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stock
+  labels:
+    app: stock
+    app.kubernetes.io/part-of: telemarche
+spec:
+  selector:
+    app: stock
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

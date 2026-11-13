@@ -1,0 +1,36 @@
+#!/bin/bash
+# assemble — construit UN programme d'un dépôt Go qui peut en contenir plusieurs.
+#
+#   COMPOSANT    le programme à construire : ./cmd/<COMPOSANT>. Sans cette
+#                variable, c'est le programme à la racine du dépôt.
+#   APP_VERSION  la version inscrite dans le binaire (défaut : le commit).
+set -e
+
+cd /tmp/src
+
+# Build incrémental : les dépendances sauvegardées par save-artifacts.
+if [ -d /tmp/artifacts/pkg ]; then
+  echo "---> Dépendances du build précédent restaurées"
+  mkdir -p "$HOME/go"
+  mv /tmp/artifacts/pkg "$HOME/go/"
+fi
+
+if [ -n "$COMPOSANT" ]; then
+  cible="./cmd/______"             # TODO 7 : le dossier du programme à construire
+  [ -d "$cible" ] || { echo "ERREUR : COMPOSANT=${COMPOSANT}, mais ${cible} n'existe pas dans le dépôt" >&2; exit 1; }
+elif ls ./*.go >/dev/null 2>&1; then
+  cible="."
+else
+  echo "ERREUR : aucun programme à la racine du dépôt. Désignez-en un : COMPOSANT=<nom> (dossier cmd/<nom>)" >&2
+  /usr/libexec/s2i/usage >&2
+  exit 1
+fi
+
+version="${APP_VERSION:-${OPENSHIFT_BUILD_COMMIT:-dev}}"
+echo "---> Construction de ${cible} (version ${version})"
+CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${version}" -o ______ "$cible"
+# TODO 8 (ci-dessus) : le chemin du binaire, celui que lance s2i/bin/run
+
+# Le cache de compilation ne sert plus : seul le binaire compte.
+go clean -cache
+echo "---> Terminé : /opt/app-root/app"

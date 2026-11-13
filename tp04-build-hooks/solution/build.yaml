@@ -1,0 +1,48 @@
+# La recette de construction de l'API. Quatre questions, quatre sections :
+# d'où vient le code (source), comment construire (strategy), où publier
+# (output), quand construire (triggers).
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: api
+  labels:
+    app.kubernetes.io/part-of: telemarche
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: api
+  labels:
+    app.kubernetes.io/part-of: telemarche
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/aboigues/openshift-formation
+      ref: main
+    contextDir: apps/telemarche
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile.api
+      buildArgs:
+        - name: APP_VERSION        # la valeur de « ARG APP_VERSION » du Dockerfile
+          value: "1.2"
+  output:
+    to:
+      kind: ImageStreamTag
+      name: api:latest
+  triggers:
+    - type: ConfigChange           # un build part dès que le BuildConfig est créé
+  # Le garde-fou : exécuté DANS l'image qui vient d'être construite, avant sa
+  # publication. Code de retour différent de 0 : l'image n'est pas poussée.
+  # Forme « command » : aucun shell n'est nécessaire dans l'image.
+  postCommit:
+    command: ["/app/api"]
+    args: ["--self-test"]
+  runPolicy: Serial
+  successfulBuildsHistoryLimit: 3
+  failedBuildsHistoryLimit: 3
+  resources:
+    limits:
+      memory: 2Gi
