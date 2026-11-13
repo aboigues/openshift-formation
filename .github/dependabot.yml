@@ -1,0 +1,14 @@
+# Mises à jour proposées chaque lundi, par PR. Rien n'est fusionné automatiquement.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: {interval: weekly, day: monday}
+  - package-ecosystem: gomod
+    directories: [/apps/telemarche, /apps/bonjour]
+    schedule: {interval: weekly, day: monday}
+  # Les images de base. Attention : les supports de cours citent les étiquettes
+  # UBI (10.3) ; une montée de version se décide avec eux.
+  - package-ecosystem: docker
+    directories: [/apps/telemarche, /builders/telemach-go-builder, /tp02-concevoir-image/solution, /tp05-personnaliser-s2i/solution/telemach-go-builder]
+    schedule: {interval: weekly, day: monday}
