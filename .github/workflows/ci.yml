@@ -1,0 +1,144 @@
+name: TP — vérification
+
+# Quatre barrières :
+#   1. lint     : contrôles statiques (trous, YAML, labels, shellcheck).
+#   1 bis. securite : secrets, fautes de configuration des manifestes et des
+#                Dockerfile, vulnérabilités du code Go et des images
+#                (scripts/securite.sh). Trivy tourne depuis son image officielle,
+#                épinglée ; les actions GitHub sont épinglées par empreinte.
+#   2. images  : tout ce qui se prouve sans OpenShift. Les images sont construites
+#                puis lancées avec un UID arbitraire et le groupe 0, comme sur
+#                OpenShift ; les prémisses des TP (ce qui doit échouer) sont rejouées.
+#   3. cluster : verify.sh solution de chaque TP sur un vrai OpenShift. Ce job ne
+#                tourne que si le dépôt porte les secrets OPENSHIFT_SERVER et
+#                OPENSHIFT_TOKEN (jeton d'un compte de service, par exemple).
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OC_VERSION: 4.22.14
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Contrôles statiques
+        run: ./scripts/lint.sh
+
+  securite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Secrets, manifestes, code Go, images
+        run: MOTEUR=docker ./scripts/securite.sh
+
+  images:
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Go — gofmt et go vet (dans go-toolset, la chaîne des TP)
+        run: |
+          set -euo pipefail
+          docker run --rm -u 0 -v "$PWD/apps":/apps:ro registry.access.redhat.com/ubi10/go-toolset:10.3 sh -c '
+            cp -r /apps /tmp/apps && cd /tmp/apps/telemarche &&
+            test -z "$(gofmt -l .)" && go vet ./... &&
+            cd ../bonjour && test -z "$(gofmt -l .)" && go vet ./...'
+
+      - name: Images de Télémarché sous UID arbitraire
+        working-directory: apps/telemarche
+        run: |
+          set -euo pipefail
+          docker build -q -f Dockerfile.api --build-arg APP_VERSION=ci -t api:ci .
+          docker build -q -f Dockerfile.web --build-arg APP_VERSION=ci -t web:ci .
+          docker build -q --build-arg COMPOSANT=web -t generique:ci .
+          docker run --rm --user 12345:0 --read-only api:ci --self-test
+          docker run -d --name api --user 12345:0 --read-only -p 8080:8080 api:ci
+          docker run -d --name web --user 12345:0 --read-only -p 8081:8080 web:ci
+          sleep 6
+          curl -fsS localhost:8080/ready
+          curl -fsS localhost:8080/version | grep '"version":"ci"'
+          curl -fsS localhost:8081/version | grep '"service":"web"'
+
+      - name: TP02 — l'image historique échoue, la solution démarre et s'arrête proprement
+        run: |
+          set -euo pipefail
+          for v in heritage solution; do
+            rm -rf "/tmp/$v"; cp -R apps/telemarche "/tmp/$v"; cp -R tp02-concevoir-image/$v/. "/tmp/$v/"
+            docker build -q -t "tp02-$v:ci" "/tmp/$v"
+          done
+          if docker run --rm --user 12345:0 tp02-heritage:ci > /tmp/heritage.log 2>&1; then
+            echo "::error::l'image historique démarre sous UID arbitraire : le TP02 n'a plus d'objet"; exit 1
+          fi
+          grep -q "permission denied" /tmp/heritage.log
+          docker run -d --name tp02 --user 12345:0 -p 8082:8080 tp02-solution:ci
+          sleep 6
+          curl -fsS localhost:8082/version
+          docker logs tp02 2>&1 | grep -q "journal des commandes ouvert"
+          debut=$SECONDS; docker stop -t 30 tp02 >/dev/null
+          [ $((SECONDS - debut)) -lt 20 ] || { echo "::error::arrêt en plus de 20 s"; exit 1; }
+
+      - name: TP04 — la version défectueuse compile mais échoue au self-test
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/panne; cp -R apps/telemarche /tmp/panne
+          cp tp04-build-hooks/pannes/catalogue.json /tmp/panne/cmd/api/catalogue.json
+          docker build -q -f /tmp/panne/Dockerfile.api -t panne:ci /tmp/panne
+          if docker run --rm panne:ci --self-test; then
+            echo "::error::le self-test accepte le catalogue défectueux"; exit 1
+          fi
+
+      - name: TP05 — go-toolset seul échoue, les scripts .s2i et l'image de construction réussissent
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/s2i; mkdir /tmp/s2i; cp -R apps/telemarche /tmp/s2i/src
+          printf 'FROM registry.access.redhat.com/ubi10/go-toolset:10.3\nCOPY --chown=1001:0 src /tmp/src\nRUN /usr/libexec/s2i/assemble\n' > /tmp/s2i/Dockerfile
+          if docker build -q -t n0:ci /tmp/s2i >/dev/null 2>&1; then
+            echo "::error::go-toolset construit Télémarché sans script : le TP05 n'a plus d'objet"; exit 1
+          fi
+          cp -R tp05-personnaliser-s2i/solution/depot/.s2i /tmp/s2i/src/
+          printf 'FROM registry.access.redhat.com/ubi10/go-toolset:10.3\nCOPY --chown=1001:0 src /tmp/src\nENV COMPOSANT=web\nRUN /tmp/src/.s2i/bin/assemble\nCMD ["/tmp/src/.s2i/bin/run"]\n' > /tmp/s2i/Dockerfile
+          docker build -q -t n2:ci /tmp/s2i
+          MOTEUR=docker ./builders/telemach-go-builder/test/run
+
+  cluster:
+    needs: [images, securite]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
+      OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Cluster configuré ?
+        id: cluster
+        run: |
+          if [ -n "$OPENSHIFT_SERVER" ] && [ -n "$OPENSHIFT_TOKEN" ]; then echo "present=true" >> "$GITHUB_OUTPUT"
+          else echo "::notice::Secrets OPENSHIFT_SERVER et OPENSHIFT_TOKEN absents : TP non rejoués sur un cluster."; fi
+      - name: oc ${{ env.OC_VERSION }}
+        if: steps.cluster.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${OC_VERSION}/openshift-client-linux.tar.gz" | sudo tar -xz -C /usr/local/bin oc
+          oc version --client
+      - name: Connexion
+        if: steps.cluster.outputs.present == 'true'
+        run: oc login --token="$OPENSHIFT_TOKEN" --server="$OPENSHIFT_SERVER" >/dev/null && oc whoami && oc project
+      - name: verify.sh solution de chaque TP
+        if: steps.cluster.outputs.present == 'true'
+        run: ./scripts/test-all.sh

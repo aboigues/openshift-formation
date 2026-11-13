@@ -1,0 +1,5 @@
+#!/bin/bash
+# save-artifacts — exécuté dans l'image PRÉCÉDENTE avant un build incrémental :
+# écrit sur la sortie standard une archive tar des dépendances téléchargées.
+cd "$HOME/go" 2>/dev/null || exit 0
+[ -d pkg ] && tar -cf - pkg

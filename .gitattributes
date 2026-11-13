@@ -1,0 +1,5 @@
+# Les scripts tournent dans des conteneurs Linux : jamais de fin de ligne Windows.
+* text=auto eol=lf
+*.sh text eol=lf
+**/s2i/bin/* text eol=lf
+**/.s2i/bin/* text eol=lf

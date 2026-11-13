@@ -1,0 +1,14 @@
+#!/bin/bash
+cat <<'FIN'
+telemach-go-builder — image de construction S2I des services Go de Telemach
+
+  oc new-app telemach-go-builder~<dépôt Git> --context-dir=<dossier> \
+     --build-env=COMPOSANT=<programme>
+
+Variables de construction :
+  COMPOSANT     programme à construire, pris dans cmd/<COMPOSANT>.
+                Sans elle : le programme à la racine du dépôt.
+  APP_VERSION   version inscrite dans le binaire (défaut : le commit construit).
+
+L'application construite est /opt/app-root/app ; elle écoute sur le port 8080.
+FIN

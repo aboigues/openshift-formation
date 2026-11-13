@@ -1,0 +1,71 @@
+# Le service « stock », À CONVERTIR de DeploymentConfig en Deployment (voir heritage/stock-dc.yaml).
+# L'ImageStream et le Service ne changent pas : seul l'objet de déploiement est déprécié.
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: telemarche-api
+  labels:
+    app.kubernetes.io/part-of: telemarche
+spec:
+  tags:
+    - name: "1.0"
+      from:
+        kind: DockerImage
+        name: docker.io/telemachlearning/telemarche-api:1.0
+---
+apiVersion: ______                 # TODO 10 : le groupe d'API des Deployments (pas apps.openshift.io/v1)
+kind: ______                       # TODO 11
+metadata:
+  name: stock
+  labels:
+    app: stock
+    app.kubernetes.io/part-of: telemarche
+  annotations:
+    # Le déclencheur ImageChange d'une DeploymentConfig devient une annotation :
+    # quand l'étiquette telemarche-api:1.0 change, OpenShift réécrit l'image du
+    # conteneur « stock », ce qui lance un déploiement.
+    # TODO 12 : recopier le « from » du déclencheur ImageChange de la DeploymentConfig.
+    image.openshift.io/triggers: >-
+      [{"from":{"kind":"______","name":"______"},
+        "fieldPath":"spec.template.spec.containers[?(@.name==\"stock\")].image"}]
+spec:
+  replicas: 1
+  selector:
+    ______:                        # TODO 13 : un Deployment n'accepte pas « selector: {app: stock} »
+      app: stock
+  strategy:
+    type: ______                   # TODO 14 : « Rolling » s'appelle autrement dans un Deployment
+  template:
+    metadata:
+      labels:
+        app: stock
+        app.kubernetes.io/part-of: telemarche
+    spec:
+      containers:
+        - name: stock
+          # Valeur d'attente : le déclencheur la remplace par l'image que désigne l'ImageStream.
+          image: telemarche-api:1.0
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stock
+  labels:
+    app: stock
+    app.kubernetes.io/part-of: telemarche
+spec:
+  selector:
+    app: stock
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

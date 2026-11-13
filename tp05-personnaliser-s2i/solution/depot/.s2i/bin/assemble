@@ -1,0 +1,11 @@
+#!/bin/bash
+# .s2i/bin/assemble — remplace le script assemble de l'image de construction.
+#
+# Celui de go-toolset lance « go build » à la racine du dépôt. Ici, la racine ne
+# contient aucun programme : il y en a deux, dans cmd/api et cmd/web. On dit
+# donc lequel construire, par une variable.
+set -e
+
+cd /tmp/src
+echo "---> Construction de cmd/${COMPOSANT:?variable COMPOSANT absente : api ou web}"
+CGO_ENABLED=0 go build -trimpath -o /opt/app-root/gobinary "./cmd/${COMPOSANT}"

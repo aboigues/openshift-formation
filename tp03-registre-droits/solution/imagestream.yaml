@@ -1,0 +1,32 @@
+# L'ImageStream « api » : une référence stable vers les images de l'API.
+# Il ne contient aucune image : chaque étiquette POINTE vers une image, et en
+# mémorise l'empreinte.
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: api
+  labels:
+    app.kubernetes.io/part-of: telemarche
+spec:
+  lookupPolicy:
+    # Équivalent de « oc set image-lookup api » : dans ce projet, un Deployment
+    # peut écrire « image: api:prod », le nom est cherché dans les ImageStreams.
+    local: true
+  tags:
+    # Une image publiée ailleurs, référencée ici (« oc import-image »).
+    - name: "1.1"
+      from:
+        kind: DockerImage
+        name: docker.io/telemachlearning/telemarche-api:1.1
+      importPolicy:
+        scheduled: true        # revérifier périodiquement l'image d'origine
+      referencePolicy:
+        type: Local            # la servir par le registre intégré, avec ses droits
+    # La promotion (« oc tag api:1.1 api:prod ») : prod désigne la même image
+    # que 1.1. Rien n'est copié, une référence se déplace.
+    - name: prod
+      from:
+        kind: ImageStreamTag
+        name: api:1.1
+      referencePolicy:
+        type: Local

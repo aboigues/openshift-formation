@@ -1,0 +1,4 @@
+#!/bin/bash
+# .s2i/bin/run — lance l'application construite par assemble.
+# exec : sans lui, c'est ce script qui recevrait SIGTERM, pas l'application.
+exec /opt/app-root/gobinary

@@ -1,0 +1,9 @@
+[
+  {"id": 1, "nom": "Panier de légumes de saison", "prix_centimes": 1890},
+  {"id": 2, "nom": "Miel de lavande (500 g)", "prix_centimes": -1250},
+  {"id": 3, "nom": "Fromage de chèvre fermier", "prix_centimes": 690},
+  {"id": 4, "nom": "Pain au levain (1 kg)", "prix_centimes": 520},
+  {"id": 5, "nom": "Huile d'olive vierge extra (75 cl)", "prix_centimes": 1590},
+  {"id": 6, "nom": "Confiture d'abricots", "prix_centimes": 480},
+  {"id": 6, "nom": "Jus de pomme (1 l)", "prix_centimes": 390}
+]

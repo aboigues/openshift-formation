@@ -1,0 +1,80 @@
+# La vitrine de Télémarché : Deployment, Service, et la Route qui la publie.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    app: web
+    app.kubernetes.io/part-of: telemarche
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+        app.kubernetes.io/part-of: telemarche
+    spec:
+      # Durcissement standard du dépôt : ne pas modifier. Ni runAsUser ni
+      # fsGroup : c'est OpenShift (restricted-v2) qui les choisit.
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          image: docker.io/telemachlearning/telemarche-web:1.0
+          env:
+            # Où la vitrine relaie /api/ : le Service de l'API, port compris.
+            - name: API_URL
+              value: http://api:8080
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 20m
+              memory: 16Mi
+            limits:
+              memory: 32Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  labels:
+    app: web
+    app.kubernetes.io/part-of: telemarche
+spec:
+  selector:
+    app: web
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+# Le nom d'hôte HORS du cluster. Pas de « host » : OpenShift le génère
+# (<route>-<projet>.apps.<cluster>), et le manifeste reste valable partout.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: web
+  labels:
+    app: web
+    app.kubernetes.io/part-of: telemarche
+spec:
+  to:
+    kind: Service
+    name: web
+  port:
+    targetPort: http
+  tls:
+    termination: edge                       # le routeur déchiffre, puis parle en clair au pod
+    insecureEdgeTerminationPolicy: Redirect # http:// est renvoyé vers https://

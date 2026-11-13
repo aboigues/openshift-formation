@@ -1,0 +1,259 @@
+# web et api, construits par NOTRE image de construction, puis déployés.
+#
+# Trois ImageStreams : l'image de construction, et une par composant.
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: telemach-go-builder
+  labels:
+    app.kubernetes.io/part-of: telemarche
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: web
+  labels:
+    app.kubernetes.io/part-of: telemarche
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: api
+  labels:
+    app.kubernetes.io/part-of: telemarche
+---
+# L'image de construction est elle-même le produit d'un build : stratégie
+# Docker, sources envoyées depuis le poste (oc start-build --from-dir).
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: telemach-go-builder
+  labels:
+    app.kubernetes.io/part-of: telemarche
+spec:
+  source:
+    type: Binary
+  strategy:
+    type: Docker
+    dockerStrategy: {}
+  output:
+    to:
+      kind: ImageStreamTag
+      name: telemach-go-builder:latest
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: web
+  labels:
+    app.kubernetes.io/part-of: telemarche
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/aboigues/openshift-formation
+      ref: main
+    contextDir: apps/telemarche
+  strategy:
+    type: ______                         # TODO 9 : la stratégie Source-to-Image
+    sourceStrategy:
+      from:
+        kind: ImageStreamTag
+        name: ______                     # TODO 10 : notre image de construction (image:étiquette)
+      env:
+        - name: ______                   # TODO 11 : la variable que lit le script assemble
+          value: web
+        - name: APP_VERSION
+          value: "1.2"
+  output:
+    to:
+      kind: ImageStreamTag
+      name: web:latest
+  triggers:
+    # Une nouvelle version de l'image de construction reconstruit l'application.
+    - type: ______                       # TODO 12
+      imageChange: {}
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: api
+  labels:
+    app.kubernetes.io/part-of: telemarche
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/aboigues/openshift-formation
+      ref: main
+    contextDir: apps/telemarche
+  strategy:
+    type: Source
+    sourceStrategy:
+      from:
+        kind: ImageStreamTag
+        name: telemach-go-builder:latest
+      env:
+        - name: COMPOSANT
+          value: api
+        - name: APP_VERSION
+          value: "1.2"
+  output:
+    to:
+      kind: ImageStreamTag
+      name: api:latest
+  triggers:
+    - type: ImageChange
+      imageChange: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels:
+    app: api
+    app.kubernetes.io/part-of: telemarche
+  annotations:
+    image.openshift.io/triggers: >-
+      [{"from":{"kind":"ImageStreamTag","name":"api:latest"},
+        "fieldPath":"spec.template.spec.containers[?(@.name==\"api\")].image"}]
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+        app.kubernetes.io/part-of: telemarche
+    spec:
+      # Durcissement standard du dépôt : ne pas modifier. Ni runAsUser ni
+      # fsGroup : c'est OpenShift (restricted-v2) qui les choisit.
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: api:latest
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 2
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  labels:
+    app: api
+    app.kubernetes.io/part-of: telemarche
+spec:
+  selector:
+    app: api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    app: web
+    app.kubernetes.io/part-of: telemarche
+  annotations:
+    image.openshift.io/triggers: >-
+      [{"from":{"kind":"ImageStreamTag","name":"web:latest"},
+        "fieldPath":"spec.template.spec.containers[?(@.name==\"web\")].image"}]
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+        app.kubernetes.io/part-of: telemarche
+    spec:
+      # Durcissement standard du dépôt : ne pas modifier. Ni runAsUser ni
+      # fsGroup : c'est OpenShift (restricted-v2) qui les choisit.
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          image: web:latest
+          env:
+            - name: API_URL
+              value: http://api:8080
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 2
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 20m
+              memory: 16Mi
+            limits:
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  labels:
+    app: web
+    app.kubernetes.io/part-of: telemarche
+spec:
+  selector:
+    app: web
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: web
+  labels:
+    app: web
+    app.kubernetes.io/part-of: telemarche
+spec:
+  to:
+    kind: Service
+    name: web
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
