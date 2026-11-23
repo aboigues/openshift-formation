@@ -4,10 +4,11 @@
 #
 # Où la vérification travaille-t-elle ? Tout dépend de vos droits sur le cluster :
 #
-#   - vous pouvez créer des projets (OpenShift Local, cluster personnel) :
+#   - vous pouvez créer des projets (CRC avec OKD, la configuration des
+#     sessions ; tout cluster où vous êtes admin) :
 #     chaque verify.sh crée SON projet jetable (tpNN-verify-<vous>), supprimé à
 #     la fin. Il ne touche jamais à votre projet de travail. KEEP=1 le conserve.
-#   - vous ne le pouvez pas (Developer Sandbox, cluster d'entreprise) : la
+#   - vous ne le pouvez pas (cluster partagé, d'entreprise) : la
 #     vérification se fait DANS votre projet courant. Les objets des TP y sont
 #     supprimés, puis recréés à partir de starter/ ou de solution/, et laissés
 #     en place à la fin. Une confirmation est demandée (OUI=1 pour la donner

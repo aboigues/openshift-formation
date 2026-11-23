@@ -19,7 +19,7 @@ tpNN-theme/
 2. Travaillez dans `starter/`.
 3. Validez : `./verify.sh` (votre travail) ; `./verify.sh solution` montre le résultat attendu.
 
-`verify.sh` s'adapte à vos droits sur le cluster : projet jetable si vous pouvez en créer, votre projet courant sinon. Voir [docs/environnements.md](docs/environnements.md).
+Les TP se jouent sur **OKD 5.0**, la distribution communautaire d'OpenShift, lancée sur chaque poste par CRC : installation et réglages dans [docs/environnements.md](docs/environnements.md). `verify.sh` s'adapte à vos droits sur le cluster : projet jetable si vous pouvez en créer, votre projet courant sinon.
 
 ## Le fil rouge : Télémarché
 
@@ -38,7 +38,7 @@ La boutique en ligne de Telemach : une vitrine **web**, une **api**, et bientôt
 | TP07 | 7 | Santé et stratégies de déploiement | à venir |
 | TP08 | 8 | Intégrer et migrer (Télécaisse, WildFly) | à venir |
 
-¹ `verify.sh` n'a pas encore été rejoué sur un cluster OpenShift.
+¹ `verify.sh` n'a pas encore été rejoué sur un cluster OKD.
 ² Ce qui se prouve sans cluster (images sous UID arbitraire, prémisses des TP) est rejoué par la CI, job `images`.
 
 ## Les barrières
@@ -50,4 +50,4 @@ La boutique en ligne de Telemach : une vitrine **web**, une **api**, et bientôt
 | Images et prémisses | job `images` de la CI | non |
 | Tous les TP | `./scripts/test-all.sh` | oui |
 
-OpenShift est une marque de Red Hat. Cette formation est indépendante de l'éditeur.
+OpenShift est une marque de Red Hat ; OKD est son projet communautaire. Cette formation est indépendante de l'éditeur.
