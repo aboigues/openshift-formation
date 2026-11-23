@@ -45,7 +45,7 @@ Ces réglages ont suffi à rejouer les huit TP (CRC 2.65, OKD 5.0, le 23 novembr
 ### Sous Windows
 
 - CRC publie l'API sur `127.0.0.1:6443` et le routeur sur les ports 80 et 443 de Windows. Chaque Route créée est ajoutée au fichier `hosts` de Windows : le navigateur l'ouvre directement.
-- Depuis WSL, en réseau NAT (le défaut), ni `api.crc.testing` ni les Routes ne sont joignables. Les TP y ont été rejoués avec deux contournements : le `oc.exe` de CRC (`%USERPROFILE%\.crc\bin\oc`) appelé depuis WSL, et `curl` envoyant les noms `*.apps-crc.testing` vers l'adresse de Windows. Le réseau « miroir » de WSL, où `127.0.0.1` désigne Windows, devrait les rendre inutiles (pas encore rejoué). Dans `%USERPROFILE%\.wslconfig`, puis `wsl --shutdown` :
+- Depuis WSL, en réseau NAT (le défaut), ni `api.crc.testing` ni les Routes ne sont joignables. Les TP y ont été rejoués avec deux contournements : le `oc.exe` de CRC (`%USERPROFILE%\.crc\bin\oc`) appelé depuis WSL, et `curl` envoyant les noms `*.apps-crc.testing` vers l'adresse de Windows. Le réseau « miroir » de WSL, où `127.0.0.1` désigne Windows, les remplace : c'est la configuration du runner de la gate `okd` ([gate-okd.md](gate-okd.md), étape 1, qui ajoute aussi les noms de CRC à `/etc/hosts`). Dans `%USERPROFILE%\.wslconfig`, puis `wsl --shutdown` :
 
   ```ini
   [wsl2]

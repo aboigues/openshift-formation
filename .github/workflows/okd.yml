@@ -81,10 +81,13 @@ jobs:
 
       - name: CRC joignable ?
         run: |
-          if ! curl -sk -m 10 "$OKD_API/healthz" | grep -qx ok; then
+          if curl -sk -m 10 "$OKD_API/healthz" | grep -qx ok; then exit 0; fi
+          if ! getent hosts api.crc.testing >/dev/null; then
+            echo "::error::api.crc.testing ne se résout pas sur le poste : ligne manquante dans /etc/hosts (docs/gate-okd.md, étape 1)."
+          else
             echo "::error::OKD ne répond pas sur $OKD_API. Démarrez CRC (crc start), puis relancez ce job (Re-run jobs)."
-            exit 1
           fi
+          exit 1
 
       - name: oc ${{ env.OC_VERSION }}
         run: |

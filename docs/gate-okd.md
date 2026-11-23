@@ -23,14 +23,15 @@ memory=6GB
 networkingMode=mirrored
 ```
 
-Puis, dans PowerShell : `wsl --shutdown`, et rouvrez un terminal WSL. Vérifiez, CRC démarré :
+Puis, dans PowerShell : quittez les terminaux WSL, `wsl --shutdown`, et vérifiez que `wsl --list --running` ne liste plus rien (Docker Desktop relance parfois WSL : quittez-le). Rouvrez un terminal WSL : `wslinfo --networking-mode` doit répondre `mirrored`.
+
+WSL ne recopie pas dans `/etc/hosts` les noms que CRC ajoute au fichier `hosts` de Windows, et régénère `/etc/hosts` à chaque démarrage. On lui demande de ne plus le faire, puis on ajoute les deux noms dont `oc login` a besoin :
 
 ```bash
-getent hosts api.crc.testing oauth-openshift.apps-crc.testing   # 127.0.0.1, recopiés depuis Windows par WSL
-curl -sk https://api.crc.testing:6443/healthz; echo              # ok
+sudo sed -i 's/^\[network\]$/[network]\ngenerateHosts = false/' /etc/wsl.conf   # ou ajoutez la section [network]
+echo "127.0.0.1 api.crc.testing oauth-openshift.apps-crc.testing" | sudo tee -a /etc/hosts
+curl -sk https://api.crc.testing:6443/healthz; echo     # ok, CRC démarré
 ```
-
-Si `getent` ne répond rien, ajoutez la ligne à la main : `echo "127.0.0.1 api.crc.testing oauth-openshift.apps-crc.testing" | sudo tee -a /etc/hosts`.
 
 Les noms des Routes créées pendant les TP ne sont pas dans le DNS de WSL : le workflow pose `ROUTEUR=127.0.0.1`, qui fait envoyer par `curl` ces noms au routeur de CRC (voir [environnements.md](environnements.md)).
 
