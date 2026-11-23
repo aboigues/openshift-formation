@@ -34,8 +34,8 @@ La boutique en ligne de Telemach : une vitrine **web**, une **api**, et bientôt
 | [TP03](tp03-registre-droits/) | 3 | Registre et droits : ImageStream, promotion, partage entre projets, registre externe | écrit ¹ |
 | [TP04](tp04-build-hooks/) | 4 | Builds : BuildConfig, déclencheurs, build binaire, hook post-commit | écrit ¹ ² |
 | [TP05](tp05-personnaliser-s2i/) | 5 | Source-to-Image : scripts dans le dépôt, image de construction sur mesure | écrit ¹ ² |
-| TP06 | 6 | Modèle à plusieurs conteneurs | à venir |
-| TP07 | 7 | Santé et stratégies de déploiement | à venir |
+| [TP06](tp06-modele-multi-conteneurs/) | 6 | Modèle à plusieurs conteneurs : Template, paramètres générés, PostgreSQL persistant, conteneur d'initialisation | écrit ¹ ² |
+| [TP07](tp07-sante-strategies/) | 7 | Santé et stratégies : sondes de démarrage, de disponibilité et de vie, mise à jour sans coupure, PodDisruptionBudget, canari par la Route | écrit ¹ ² |
 | TP08 | 8 | Intégrer et migrer (Télécaisse, WildFly) | à venir |
 
 ¹ `verify.sh` n'a pas encore été rejoué sur un cluster OKD.

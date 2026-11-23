@@ -1,0 +1,114 @@
+# L'API, prête pour la production : elle dit quand elle démarre, quand elle
+# peut recevoir du trafic et quand elle est bloquée ; ses mises à jour ne
+# coupent aucune requête ; une maintenance du cluster n'arrête jamais tous ses pods.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels:
+    app: api
+    app.kubernetes.io/part-of: telemarche
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Jamais moins de 2 pods prêts : un nouveau pod est d'abord créé
+      # (maxSurge), et un ancien ne s'arrête que lorsqu'il est prêt.
+      maxUnavailable: ______       # TODO 1 : combien de pods prêts peut-on perdre pendant la mise à jour ?
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: api
+        app.kubernetes.io/part-of: telemarche
+    spec:
+      # Plus long que la vidange de l'API (SHUTDOWN_SECONDS) : sinon le pod est
+      # tué (SIGKILL) au milieu des dernières requêtes.
+      terminationGracePeriodSeconds: ______   # TODO 2 : en secondes, plus que SHUTDOWN_SECONDS
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: docker.io/telemachlearning/telemarche-api:1.0
+          env:
+            # Une application qui met 20 s à démarrer : cache à charger,
+            # connexions à ouvrir…
+            - name: STARTUP_SECONDS
+              value: "20"
+            # Après SIGTERM : /ready répond 503, puis l'API sert encore 10 s,
+            # le temps que le Service et le routeur l'oublient.
+            - name: SHUTDOWN_SECONDS
+              value: "10"
+          ports:
+            - name: http
+              containerPort: 8080
+          # « As-tu fini de démarrer ? » Tant qu'elle échoue, les deux autres
+          # sondes attendent. Ici : jusqu'à 30 × 2 s = 60 s pour démarrer.
+          startupProbe:
+            httpGet:
+              path: ______              # TODO 3 : « le processus est-il vivant ? » (voir apps/telemarche/README.md)
+              port: http
+            periodSeconds: 2
+            failureThreshold: ______    # TODO 4 : assez d'essais de 2 s pour couvrir STARTUP_SECONDS, avec de la marge
+          # « Puis-je t'envoyer du trafic ? » Un échec retire le pod du Service,
+          # sans le redémarrer.
+          readinessProbe:
+            httpGet:
+              path: ______              # TODO 5
+              port: http
+            periodSeconds: 2
+          # « Es-tu bloquée ? » Trois échecs de suite, et le conteneur est
+          # redémarré. Elle ne doit dépendre de rien d'extérieur (base…).
+          livenessProbe:
+            httpGet:
+              path: ______              # TODO 6 : surtout pas un chemin qui dépend de la base
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  labels:
+    app: api
+    app.kubernetes.io/part-of: telemarche
+spec:
+  selector:
+    app: api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+# Une maintenance du cluster (vidange d'un nœud, mise à jour) peut arrêter des
+# pods. Ce budget lui interdit de descendre sous un pod de l'API.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api
+  labels:
+    app: api
+    app.kubernetes.io/part-of: telemarche
+spec:
+  minAvailable: ______             # TODO 7
+  selector:
+    matchLabels:
+      app: api
