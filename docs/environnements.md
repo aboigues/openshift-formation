@@ -45,7 +45,7 @@ Ces réglages ont suffi à rejouer les huit TP (CRC 2.65, OKD 5.0, le 23 novembr
 ### Sous Windows
 
 - CRC publie l'API sur `127.0.0.1:6443` et le routeur sur les ports 80 et 443 de Windows. Chaque Route créée est ajoutée au fichier `hosts` de Windows : le navigateur l'ouvre directement.
-- Depuis WSL, en réseau NAT (le défaut), ni `api.crc.testing` ni les Routes ne sont joignables. Les TP y ont été rejoués avec deux contournements : le `oc.exe` de CRC (`%USERPROFILE%\.crc\bin\oc`) appelé depuis WSL, et `curl` envoyant les noms `*.apps-crc.testing` vers l'adresse de Windows. Le réseau « miroir » de WSL, où `127.0.0.1` désigne Windows, devrait les rendre inutiles (pas encore rejoué). Dans `%USERPROFILE%\.wslconfig`, puis `wsl --shutdown` :
+- Depuis WSL, en réseau NAT (le défaut), ni `api.crc.testing` ni les Routes ne sont joignables. Les TP y ont été rejoués avec deux contournements : le `oc.exe` de CRC (`%USERPROFILE%\.crc\bin\oc`) appelé depuis WSL, et `curl` envoyant les noms `*.apps-crc.testing` vers l'adresse de Windows. Le réseau « miroir » de WSL, où `127.0.0.1` désigne Windows, les remplace : c'est la configuration du runner de la gate `okd` ([gate-okd.md](gate-okd.md), étape 1, qui ajoute aussi les noms de CRC à `/etc/hosts`). Dans `%USERPROFILE%\.wslconfig`, puis `wsl --shutdown` :
 
   ```ini
   [wsl2]
@@ -84,6 +84,7 @@ Les builds, les DeploymentConfig et le registre intégré sont des fonctionnalit
 | `PROJET_JETABLE=0` | n'essaie pas de créer de projet |
 | `DEPOT_GIT=<adresse>`, `REF_GIT=<branche>` | le dépôt que clonent les builds, au lieu de votre copie de travail |
 | `HERITAGE=1` | TP02 : contrôle aussi que l'image historique échoue sur ce cluster |
+| `ROUTEUR=<adresse>` | envoie les requêtes vers les Routes à cette adresse, sans passer par le DNS ; par exemple `ROUTEUR=127.0.0.1` depuis WSL avec CRC |
 
 Par défaut, les builds de `verify.sh` clonent **votre copie de travail**, servie par un petit dépôt Git lancé dans le projet de vérification (`depot-git`) : ils ne dépendent ni de GitHub, ni de ce qui y est publié.
 
@@ -104,4 +105,4 @@ oc login …
 ./scripts/test-all.sh      # verify.sh solution de chaque TP, sur le cluster connecté
 ```
 
-Dans la CI, le job `cluster` fait la même chose dès que le dépôt GitHub porte les secrets `OPENSHIFT_SERVER` et `OPENSHIFT_TOKEN`. Il utilise le client `oc` d'OKD, à la version fixée dans `.github/workflows/ci.yml`.
+Dans GitHub, le check `okd` fait la même chose sur le CRC d'un poste, avant chaque fusion d'une PR qui touche les TP : voir [gate-okd.md](gate-okd.md).
