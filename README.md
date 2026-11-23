@@ -49,5 +49,6 @@ La boutique en ligne de Telemach : une vitrine **web**, une **api**, et sa base 
 | Sécurité : secrets, manifestes, code Go, images | `./scripts/securite.sh` | non |
 | Images et prémisses | job `images` de la CI | non |
 | Tous les TP | `./scripts/test-all.sh` | oui |
+| Tous les TP, avant chaque fusion : check `okd` ([mise en place](docs/gate-okd.md)) | workflow `okd.yml`, runner sur le poste CRC | oui |
 
 OpenShift est une marque de Red Hat ; OKD est son projet communautaire. Cette formation est indépendante de l'éditeur.

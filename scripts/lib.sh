@@ -34,6 +34,21 @@ SELECTEUR_TP='app.kubernetes.io/part-of in (telemarche,telecaisse)'
 SECRETS_TP="db-credentials telecaisse-db registre-externe webhook-api"
 CONFIGMAPS_TP="api-config ca-entreprise"
 
+# ROUTEUR=<adresse> : envoie les requêtes vers les Routes à cette adresse, quel
+# que soit le DNS du poste. Pour un poste qui ne résout pas les noms des Routes
+# (*.apps-crc.testing depuis WSL, par exemple) : ROUTEUR=127.0.0.1.
+if [ -n "${ROUTEUR:-}" ]; then
+  curl() {
+    local a extra=()
+    for a in "$@"; do
+      if [[ "$a" =~ ^https?://([^/:]+) ]]; then
+        extra+=(--resolve "${BASH_REMATCH[1]}:443:$ROUTEUR" --resolve "${BASH_REMATCH[1]}:80:$ROUTEUR")
+      fi
+    done
+    command curl "${extra[@]}" "$@"
+  }
+fi
+
 # Couleurs (désactivées si pas de TTY, ex. CI)
 if [ -t 1 ]; then
   GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[0;33m'; BLUE='\033[0;34m'; NC='\033[0m'

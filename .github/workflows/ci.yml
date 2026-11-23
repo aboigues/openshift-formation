@@ -9,9 +9,8 @@ name: TP — vérification
 #   2. images  : tout ce qui se prouve sans OpenShift. Les images sont construites
 #                puis lancées avec un UID arbitraire et le groupe 0, comme sur
 #                OpenShift ; les prémisses des TP (ce qui doit échouer) sont rejouées.
-#   3. cluster : verify.sh solution de chaque TP sur un vrai OpenShift. Ce job ne
-#                tourne que si le dépôt porte les secrets OPENSHIFT_SERVER et
-#                OPENSHIFT_TOKEN (jeton d'un compte de service, par exemple).
+#   3. okd     : verify.sh solution de chaque TP sur un vrai OKD, dans le
+#                workflow okd.yml (runner auto-hébergé, voir docs/gate-okd.md).
 on:
   push:
     branches: [main]
@@ -24,10 +23,6 @@ permissions:
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
-
-env:
-  # Le client oc d'OKD, la plateforme des sessions (docs/environnements.md).
-  OC_VERSION: 5.0.0-okd-scos.8
 
 jobs:
   lint:
@@ -173,35 +168,3 @@ jobs:
           vente=$(curl -fsS -X POST -H 'Content-Type: application/json' -d '{"produit":2,"quantite":3}' localhost:8088/api/ventes)
           echo "$vente"
           echo "$vente" | grep -q '"montantCentimes":3750'
-
-  cluster:
-    needs: [images, securite]
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    env:
-      OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
-      OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Cluster configuré ?
-        id: cluster
-        run: |
-          if [ -n "$OPENSHIFT_SERVER" ] && [ -n "$OPENSHIFT_TOKEN" ]; then echo "present=true" >> "$GITHUB_OUTPUT"
-          else echo "::notice::Secrets OPENSHIFT_SERVER et OPENSHIFT_TOKEN absents : TP non rejoués sur un cluster."; fi
-      - name: oc ${{ env.OC_VERSION }}
-        if: steps.cluster.outputs.present == 'true'
-        run: |
-          set -euo pipefail
-          base="https://github.com/okd-project/okd/releases/download/${OC_VERSION}"
-          archive="openshift-client-linux-${OC_VERSION}.tar.gz"
-          cd "$RUNNER_TEMP"
-          curl -fsSLO "$base/$archive"
-          curl -fsSL "$base/sha256sum.txt" | grep " ${archive}\$" | sha256sum -c -
-          sudo tar -xzf "$archive" -C /usr/local/bin oc
-          oc version --client
-      - name: Connexion
-        if: steps.cluster.outputs.present == 'true'
-        run: oc login --token="$OPENSHIFT_TOKEN" --server="$OPENSHIFT_SERVER" >/dev/null && oc whoami && oc project
-      - name: verify.sh solution de chaque TP
-        if: steps.cluster.outputs.present == 'true'
-        run: ./scripts/test-all.sh

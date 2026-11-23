@@ -84,6 +84,7 @@ Les builds, les DeploymentConfig et le registre intégré sont des fonctionnalit
 | `PROJET_JETABLE=0` | n'essaie pas de créer de projet |
 | `DEPOT_GIT=<adresse>`, `REF_GIT=<branche>` | le dépôt que clonent les builds, au lieu de votre copie de travail |
 | `HERITAGE=1` | TP02 : contrôle aussi que l'image historique échoue sur ce cluster |
+| `ROUTEUR=<adresse>` | envoie les requêtes vers les Routes à cette adresse, sans passer par le DNS ; par exemple `ROUTEUR=127.0.0.1` depuis WSL avec CRC |
 
 Par défaut, les builds de `verify.sh` clonent **votre copie de travail**, servie par un petit dépôt Git lancé dans le projet de vérification (`depot-git`) : ils ne dépendent ni de GitHub, ni de ce qui y est publié.
 
@@ -104,4 +105,4 @@ oc login …
 ./scripts/test-all.sh      # verify.sh solution de chaque TP, sur le cluster connecté
 ```
 
-Dans la CI, le job `cluster` fait la même chose dès que le dépôt GitHub porte les secrets `OPENSHIFT_SERVER` et `OPENSHIFT_TOKEN`. Il utilise le client `oc` d'OKD, à la version fixée dans `.github/workflows/ci.yml`.
+Dans GitHub, le check `okd` fait la même chose sur le CRC d'un poste, avant chaque fusion d'une PR qui touche les TP : voir [gate-okd.md](gate-okd.md).

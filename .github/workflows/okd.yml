@@ -1,0 +1,146 @@
+name: OKD
+
+# La répétition générale sur un vrai OKD : verify.sh solution de chaque TP
+# (scripts/test-all.sh), sur le CRC d'un poste, par un runner auto-hébergé
+# portant le label « okd ». Mise en place : docs/gate-okd.md.
+#
+# Le job « okd » est un check obligatoire de main. Il :
+#   - tourne pour chaque PR qui touche les TP, les applications ou les scripts ;
+#   - est « skipped » (donc satisfait) pour une PR qui ne les touche pas ;
+#   - n'exécute JAMAIS le code d'un fork sur le poste : une PR externe qui touche
+#     les TP échoue sur un runner GitHub, avec un message ; on reprend alors ses
+#     commits dans une branche du dépôt.
+# Il tourne aussi chaque lundi, et à la demande, pour repérer une dérive (images,
+# OKD, CRC) sans attendre une PR.
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un seul passage à la fois : il n'y a qu'un cluster.
+concurrency:
+  group: okd
+  cancel-in-progress: false
+
+env:
+  # Le client oc d'OKD, de la même version majeure que le cluster.
+  OC_VERSION: 5.0.0-okd-scos.8
+  OKD_API: https://api.crc.testing:6443
+
+jobs:
+  portee:
+    name: portée
+    runs-on: ubuntu-latest
+    outputs:
+      tp: ${{ steps.p.outputs.tp }}
+      externe: ${{ steps.p.outputs.externe }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: p
+        env:
+          EVENEMENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          TETE: ${{ github.event.pull_request.head.sha }}
+          DEPOT_PR: ${{ github.event.pull_request.head.repo.full_name }}
+          DEPOT: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENEMENT" != pull_request ]; then
+            echo "tp=true" >> "$GITHUB_OUTPUT"; echo "externe=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if git diff --name-only "$BASE" "$TETE" \
+               | grep -qE '^(tp[0-9]{2}-|apps/|builders/|scripts/|\.github/workflows/okd\.yml$)'; then
+            echo "tp=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tp=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Ni TP, ni application, ni script modifié : pas de répétition sur OKD."
+          fi
+          if [ "$DEPOT_PR" = "$DEPOT" ]; then echo "externe=false" >> "$GITHUB_OUTPUT"; else echo "externe=true" >> "$GITHUB_OUTPUT"; fi
+
+  okd:
+    needs: portee
+    if: needs.portee.outputs.tp == 'true'
+    # Une PR de fork ne va jamais sur le poste : elle échoue sur un runner GitHub.
+    runs-on: ${{ needs.portee.outputs.externe == 'true' && 'ubuntu-latest' || 'okd' }}
+    timeout-minutes: 120
+    steps:
+      - name: PR externe
+        if: needs.portee.outputs.externe == 'true'
+        run: |
+          echo "::error::PR venue d'un fork : elle n'est pas rejouée sur le poste. Reprenez ses commits dans une branche du dépôt."
+          exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: CRC joignable ?
+        run: |
+          if ! curl -sk -m 10 "$OKD_API/healthz" | grep -qx ok; then
+            echo "::error::OKD ne répond pas sur $OKD_API. Démarrez CRC (crc start), puis relancez ce job (Re-run jobs)."
+            exit 1
+          fi
+
+      - name: oc ${{ env.OC_VERSION }}
+        run: |
+          set -euo pipefail
+          base="https://github.com/okd-project/okd/releases/download/${OC_VERSION}"
+          archive="openshift-client-linux-${OC_VERSION}.tar.gz"
+          mkdir -p "$RUNNER_TEMP/bin"; cd "$RUNNER_TEMP"
+          curl -fsSLO "$base/$archive"
+          curl -fsSL "$base/sha256sum.txt" | grep " ${archive}\$" | sha256sum -c -
+          tar -xzf "$archive" -C "$RUNNER_TEMP/bin" oc
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      # Un kubeconfig propre au passage : rien n'est laissé sur le poste.
+      - name: Connexion en developer
+        env:
+          OKD_PASSWORD: ${{ secrets.OKD_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [ -n "$OKD_PASSWORD" ] || { echo "::error::Secret OKD_PASSWORD absent (Actions, et Dependabot pour ses PR)."; exit 1; }
+          export KUBECONFIG="$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$KUBECONFIG" >> "$GITHUB_ENV"
+          oc login -u developer -p "$OKD_PASSWORD" "$OKD_API" --insecure-skip-tls-verify=true >/dev/null
+          oc whoami
+          oc version | tail -2
+
+      - name: verify.sh solution de chaque TP
+        env:
+          # Les Routes des projets de vérification ne sont pas dans le DNS du
+          # poste : curl les envoie directement au routeur de CRC.
+          ROUTEUR: 127.0.0.1
+        run: |
+          set -o pipefail
+          ./scripts/test-all.sh 2>&1 | tee "$RUNNER_TEMP/test-all.log"
+
+      - name: Bilan
+        if: always()
+        run: |
+          {
+            echo "## Répétition sur OKD"
+            echo
+            echo "Cluster : \`$(oc version 2>/dev/null | sed -n 's/^Server Version: //p')\`, utilisateur \`$(oc whoami 2>/dev/null)\`"
+            echo
+            echo '```'
+            sed -n '/════════ Bilan/,$p' "$RUNNER_TEMP/test-all.log" 2>/dev/null || echo "(pas de bilan)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Journal complet
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-all-okd
+          path: ${{ runner.temp }}/test-all.log
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Déconnexion
+        if: always()
+        run: oc logout >/dev/null 2>&1 || true
