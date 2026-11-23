@@ -31,7 +31,7 @@ oc project                       # votre projet courant
 oc status                        # ce qu'il contient
 ```
 
-Sur le Developer Sandbox, votre projet existe déjà et vous ne pouvez pas en créer : `oc new-project` y est refusé.
+Sur votre OKD local (CRC), l'utilisateur `developer` crée ses projets : `oc new-project telemarche` si `oc project` n'en montre aucun. Sur un cluster partagé, votre projet existe peut-être déjà et `oc new-project` peut y être refusé.
 
 ## Étape 2 — Déployer l'API à partir de son image
 

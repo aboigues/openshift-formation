@@ -91,7 +91,7 @@ Le Deployment écrit `api:prod` ; le pod, lui, porte une empreinte. C'est l'effe
 Il vous faut un projet consommateur :
 
 - **vous pouvez créer des projets** : `oc new-project "$(oc whoami | tr -c 'a-z0-9\n' '-')-prod"`, puis `oc project <votre premier projet>` pour y revenir ;
-- **sinon (Developer Sandbox)** : travaillez en binôme. Le projet consommateur est celui de votre voisin, qui lance `consommateur.sh` de son côté.
+- **sinon (cluster partagé sans ce droit)** : travaillez en binôme. Le projet consommateur est celui de votre voisin, qui lance `consommateur.sh` de son côté.
 
 ```bash
 IMAGES=$(oc project -q)

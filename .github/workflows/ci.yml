@@ -26,7 +26,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  OC_VERSION: 4.22.14
+  # Le client oc d'OKD, la plateforme des sessions (docs/environnements.md).
+  OC_VERSION: 5.0.0-okd-scos.8
 
 jobs:
   lint:
@@ -134,7 +135,12 @@ jobs:
         if: steps.cluster.outputs.present == 'true'
         run: |
           set -euo pipefail
-          curl -fsSL "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${OC_VERSION}/openshift-client-linux.tar.gz" | sudo tar -xz -C /usr/local/bin oc
+          base="https://github.com/okd-project/okd/releases/download/${OC_VERSION}"
+          archive="openshift-client-linux-${OC_VERSION}.tar.gz"
+          cd "$RUNNER_TEMP"
+          curl -fsSLO "$base/$archive"
+          curl -fsSL "$base/sha256sum.txt" | grep " ${archive}\$" | sha256sum -c -
+          sudo tar -xzf "$archive" -C /usr/local/bin oc
           oc version --client
       - name: Connexion
         if: steps.cluster.outputs.present == 'true'
