@@ -183,7 +183,15 @@ creer_projet() {
     done
   fi
   # --skip-config-write : votre projet courant ne change pas.
-  o new-project "$ns" --skip-config-write >/dev/null || die "Création du projet $ns impossible."
+  # Un projet supprimé juste avant (verify.sh relancé aussitôt) reste quelque
+  # temps « en cours de suppression » : sa recréation est refusée, on réessaie.
+  local err=""
+  i=0
+  until err="$(o new-project "$ns" --skip-config-write 2>&1 >/dev/null)"; do
+    i=$((i+5))
+    [ "$i" -lt 240 ] || die "Création du projet $ns impossible : $err"
+    sleep 5
+  done
   # Les comptes de service arrivent une ou deux secondes après le projet : un
   # build lancé avant l'arrivée de « builder » échoue.
   i=0

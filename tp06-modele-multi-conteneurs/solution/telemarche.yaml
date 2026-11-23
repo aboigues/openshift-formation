@@ -53,13 +53,16 @@ objects:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
 
-  # Les données de la base survivent au pod.
+  # Les données de la base survivent au pod. ReadWriteOncePod : un seul POD à
+  # la fois. ReadWriteOnce ne limite qu'à un seul NŒUD : sur un cluster d'un
+  # nœud (CRC), le pod qui remplace un pod supprimé démarrerait pendant que
+  # l'ancien s'arrête encore, et deux PostgreSQL ouvriraient les mêmes fichiers.
   - apiVersion: v1
     kind: PersistentVolumeClaim
     metadata:
       name: db-data
     spec:
-      accessModes: ["ReadWriteOnce"]
+      accessModes: ["ReadWriteOncePod"]
       resources:
         requests:
           storage: ${DB_VOLUME_SIZE}
@@ -72,8 +75,8 @@ objects:
         app: db
     spec:
       replicas: 1
-      # Un volume ReadWriteOnce, une base : jamais deux pods à la fois.
-      # RollingUpdate démarrerait le nouveau avant d'arrêter l'ancien.
+      # Le volume n'accepte qu'un pod à la fois. RollingUpdate démarrerait le
+      # nouveau avant d'arrêter l'ancien : il attendrait le volume, sans fin.
       strategy:
         type: Recreate
       selector:

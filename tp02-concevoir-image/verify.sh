@@ -108,7 +108,20 @@ if [ "${HERITAGE:-0}" = "1" ]; then
     sleep 5; i=$((i+5))
   done
   assert_contains "Elle s'arrête sur « permission denied »" "permission denied" "$JOURNAL"
-  assert_eq "Aucun pod de l'image historique n'est prêt" "" "$(jp deployment/api-heritage '{.status.readyReplicas}')"
+  # Sans sonde de disponibilité, le pod est « prêt » le temps de son court
+  # démarrage : un instantané de readyReplicas tombe parfois dessus. Ce qui
+  # compte, c'est qu'il échoue en boucle.
+  i=0; REDEMARRAGES=0
+  while [ "$i" -lt 120 ]; do
+    REDEMARRAGES="$(o get pods -n "$NS" -l app=api-heritage -o jsonpath='{.items[0].status.containerStatuses[0].restartCount}' 2>/dev/null || true)"
+    [ "${REDEMARRAGES:-0}" -ge 2 ] && break
+    sleep 5; i=$((i+5))
+  done
+  if [ "${REDEMARRAGES:-0}" -ge 2 ]; then
+    ok "L'image historique redémarre en boucle ($REDEMARRAGES redémarrages)"
+  else
+    ko "L'image historique ne redémarre pas en boucle (${REDEMARRAGES:-0} redémarrage)"
+  fi
 fi
 
 summary
