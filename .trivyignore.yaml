@@ -1,0 +1,13 @@
+# Exceptions VOULUES de la barrière de sécurité (scripts/securite.sh), chacune
+# limitée à un fichier et justifiée. Toute autre faute HIGH/CRITICAL bloque.
+misconfigurations:
+  - id: KSV-0108
+    paths: ["tp08-integrer-migrer/solution/telecaisse.yaml"]
+    statement: >-
+      Le Service ExternalName caisse-db est l'objet du TP08 : il nomme la base
+      restée hors du cluster.
+  - id: KSV-0014
+    paths: ["tp08-integrer-migrer/solution/telecaisse.yaml"]
+    statement: >-
+      WildFly écrit au démarrage dans standalone/configuration et
+      standalone/deployments : pas de système de fichiers racine en lecture seule.

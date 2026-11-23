@@ -77,8 +77,8 @@ Par défaut, les builds de `verify.sh` clonent **votre copie de travail**, servi
 
 - créer des Deployments, des Routes, des ImageStreams et des BuildConfigs dans son projet (rôle `admin` ou `edit`) ;
 - lancer des builds de stratégie **Docker** et **Source** ;
-- sortir vers `registry.access.redhat.com` et `docker.io`. Les images UBI s'y tirent sans compte : un OKD n'a pas de clé d'accès à `registry.redhat.io`, et les TP ne s'en servent pas ;
-- environ 4 Go de mémoire et 2 processeurs de quota par projet.
+- sortir vers `registry.access.redhat.com`, `docker.io` et `quay.io` (PostgreSQL et WildFly, TP06 et TP08), ainsi que `repo1.maven.org` (build Maven du TP08). Ces images se tirent sans compte : un OKD n'a pas de clé d'accès à `registry.redhat.io`, et les TP ne s'en servent pas ;
+- environ 4 Go de mémoire et 2 processeurs de quota par projet. Le build WildFly du TP08 prend à lui seul jusqu'à 1,5 Go.
 
 Docker Hub limite les téléchargements anonymes **par adresse IP**. Dans une salle où tous les postes sortent par la même adresse, faites tirer les images `telemachlearning/*` une fois par poste avant la session, ou prévoyez un miroir.
 

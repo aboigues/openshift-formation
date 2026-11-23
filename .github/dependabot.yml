@@ -4,6 +4,9 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: {interval: weekly, day: monday}
+  - package-ecosystem: maven
+    directory: /apps/telecaisse
+    schedule: {interval: weekly, day: monday}
   - package-ecosystem: gomod
     directories: [/apps/telemarche, /apps/bonjour]
     schedule: {interval: weekly, day: monday}

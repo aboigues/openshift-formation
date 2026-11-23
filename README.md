@@ -23,7 +23,7 @@ Les TP se jouent sur **OKD 5.0**, la distribution communautaire d'OpenShift, lan
 
 ## Le fil rouge : Télémarché
 
-La boutique en ligne de Telemach : une vitrine **web**, une **api**, et bientôt une base **db**. Sources et documentation : [`apps/telemarche`](apps/telemarche/README.md).
+La boutique en ligne de Telemach : une vitrine **web**, une **api**, et sa base **db** (TP06). Sources et documentation : [`apps/telemarche`](apps/telemarche/README.md). À partir du TP08, la caisse des magasins la rejoint : [`apps/telecaisse`](apps/telecaisse/README.md).
 
 ## Les TP
 
@@ -36,7 +36,7 @@ La boutique en ligne de Telemach : une vitrine **web**, une **api**, et bientôt
 | [TP05](tp05-personnaliser-s2i/) | 5 | Source-to-Image : scripts dans le dépôt, image de construction sur mesure | écrit ¹ ² |
 | [TP06](tp06-modele-multi-conteneurs/) | 6 | Modèle à plusieurs conteneurs : Template, paramètres générés, PostgreSQL persistant, conteneur d'initialisation | écrit ¹ ² |
 | [TP07](tp07-sante-strategies/) | 7 | Santé et stratégies : sondes de démarrage, de disponibilité et de vie, mise à jour sans coupure, PodDisruptionBudget, canari par la Route | écrit ¹ ² |
-| TP08 | 8 | Intégrer et migrer (Télécaisse, WildFly) | à venir |
+| [TP08](tp08-integrer-migrer/) | 8 | Intégrer et migrer : Télécaisse (Jakarta EE) construite par `wildfly-s2i`, base restée dans le SI (`ExternalName`), Secret, appel à Télémarché | écrit ¹ ² |
 
 ¹ `verify.sh` n'a pas encore été rejoué sur un cluster OKD.
 ² Ce qui se prouve sans cluster (images sous UID arbitraire, prémisses des TP) est rejoué par la CI, job `images`.
