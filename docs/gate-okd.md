@@ -69,6 +69,8 @@ gh api -X POST repos/aboigues/openshift-formation/branches/main/protection/requi
 
 ## Au quotidien
 
+- Pendant un passage, le workflow empêche Windows de se mettre en veille pour inactivité (`scripts/eveil-windows.ps1`). Capot fermé, la veille l'emporte : laissez le portable ouvert, ou réglez Windows pour qu'il ne se mette pas en veille sur secteur.
+
 - Avant de pousser une PR qui touche les TP : `crc start`. Le check part tout seul.
 - Le check a échoué parce que CRC était arrêté : `crc start`, puis **Re-run jobs** dans la PR.
 - `main` a bougé pendant que la PR attendait : la protection exige une branche à jour. *Update branch*, et la répétition repart.
