@@ -2,33 +2,48 @@
 
 Les sessions se jouent sur **OKD 5.0**, la distribution communautaire d'OpenShift, que chaque stagiaire lance sur son poste avec **CRC** (préréglage `okd`). Aucune souscription Red Hat n'est nécessaire.
 
+Les postes des stagiaires sont, sauf indication contraire, sous **AlmaLinux** (9 ou 10) avec **64 Go** de mémoire : c'est la configuration décrite ici. Le poste du formateur peut être sous Windows (voir « Sous Windows »).
+
 Les TP restent valables sur tout OKD ou OpenShift auquel `oc` est connecté : seuls vos droits changent, et `verify.sh` s'y adapte.
 
 ## Le poste
 
-| Besoin | Valeur |
-|---|---|
-| Processeur | x86_64 avec virtualisation matérielle. **Pas d'arm64** : OKD n'y est pas publié, donc pas de Mac Apple Silicon |
-| Système | Linux (libvirt), Windows (Hyper-V) ou macOS Intel |
-| Mémoire | 16 Go au minimum ; la machine virtuelle en prend 14 |
-| Disque | 60 Go libres |
+| Besoin | Poste stagiaire | Minimum absolu |
+|---|---|---|
+| Système | AlmaLinux 9 ou 10, x86_64 | Linux (libvirt), Windows (Hyper-V) ou macOS Intel |
+| Processeur | virtualisation matérielle activée dans le BIOS (KVM : `/dev/kvm` existe) ; 8 threads ou plus | 4 threads. **Pas d'arm64** : OKD n'y est pas publié |
+| Mémoire | 64 Go, dont 24 pour la machine virtuelle OKD | 16 Go, dont 14 pour la machine virtuelle |
+| Disque | 100 Go libres dans `/home` : cache de CRC (environ 30 Go) et disque de la machine virtuelle (jusqu'à 60 Go) | 60 Go libres |
 
 | Outil | Rôle | Obligatoire |
 |---|---|---|
 | `crc` (2.65 ou plus récent) | lance OKD | oui |
 | `oc` (5.0) | tout ; `crc oc-env` fournit celui du cluster | oui |
 | `git`, `curl`, `tar`, `bash` | `verify.sh` | oui |
-| `podman` ou `docker` | essais locaux des TP02, TP03 et TP05 | non : le cluster construit |
+| `podman` | essais locaux des TP02, TP03 et TP05 (fourni par AlmaLinux) | non : le cluster construit |
 
 ## Lancer OKD avec CRC
 
-`crc` se télécharge sans compte Red Hat : <https://developers.redhat.com/content-gateway/rest/mirror2/pub/openshift-v4/clients/crc/latest/>.
+`crc` se télécharge sans compte Red Hat : <https://developers.redhat.com/content-gateway/rest/mirror2/pub/openshift-v4/clients/crc/latest/>. Prenez l'archive `crc-linux-amd64.tar.xz` et placez `crc` dans votre `PATH` (par exemple `~/.local/bin`).
+
+### Préparer AlmaLinux (une fois, avec sudo)
+
+```bash
+sudo dnf install -y libvirt NetworkManager git-core curl tar podman
+sudo systemctl enable --now libvirtd NetworkManager
+sudo usermod -aG libvirt "$USER"   # puis fermez et rouvrez la session
+ls -l /dev/kvm                     # doit exister : sinon, virtualisation désactivée dans le BIOS
+```
+
+`crc setup` vérifie le reste et demande `sudo` quand il le faut : réseau virtuel de libvirt, et résolution des noms `*.crc.testing` et `*.apps-crc.testing` par NetworkManager. Les Routes s'ouvrent donc directement dans le navigateur et depuis `verify.sh`, sans réglage `ROUTEUR`.
+
+### Créer et démarrer le cluster
 
 ```bash
 crc config set preset okd          # avant le premier « crc setup »
-crc config set cpus 4
-crc config set memory 14336        # en Mio ; 10752 par défaut, juste pour les builds des TP
-crc config set disk-size 50        # en Gio ; 31 par défaut
+crc config set cpus 6              # 4 si le poste n'a que 8 threads
+crc config set memory 24576        # en Mio : 24 Go, confortable sur 64 Go (14 Go suffisent)
+crc config set disk-size 60        # en Gio ; 31 par défaut
 crc setup
 crc start                          # 15 à 30 minutes la première fois
 eval "$(crc oc-env)"               # met le oc du cluster dans le PATH
@@ -40,9 +55,11 @@ Le préréglage ne change qu'à la création : sur une instance existante, `crc 
 
 L'utilisateur `developer` crée ses propres projets : `verify.sh` travaille donc dans un projet jetable. Travaillez sous `developer`, pas sous `kubeadmin` : les TP montrent ce qu'un développeur peut faire.
 
-Ces réglages ont suffi à rejouer les huit TP (CRC 2.65, OKD 5.0, le 23 novembre 2026). Hyper-V exige que les 14 Go soient **libres** au démarrage de la machine virtuelle : fermez Docker Desktop et les applications gourmandes, et plafonnez WSL (ci-dessous).
+Les huit TP ont été rejoués avec 4 processeurs et 14 Go (CRC 2.65, OKD 5.0, le 23 novembre 2026, sur un poste Windows). Les 24 Go et 6 processeurs des postes AlmaLinux laissent de la marge : builds parallèles, exploration de la console, TP08 et son build Maven. La procédure AlmaLinux n'a pas encore été rejouée sur un poste de stagiaire : faites-le une fois avant la première session.
 
-### Sous Windows
+### Sous Windows (poste du formateur)
+
+- Hyper-V exige que la mémoire de la machine virtuelle soit **libre** à son démarrage : fermez Docker Desktop et les applications gourmandes, et plafonnez WSL (ci-dessous).
 
 - CRC publie l'API sur `127.0.0.1:6443` et le routeur sur les ports 80 et 443 de Windows. Chaque Route créée est ajoutée au fichier `hosts` de Windows : le navigateur l'ouvre directement.
 - Depuis WSL, en réseau NAT (le défaut), ni `api.crc.testing` ni les Routes ne sont joignables. Les TP y ont été rejoués avec deux contournements : le `oc.exe` de CRC (`%USERPROFILE%\.crc\bin\oc`) appelé depuis WSL, et `curl` envoyant les noms `*.apps-crc.testing` vers l'adresse de Windows. Le réseau « miroir » de WSL, où `127.0.0.1` désigne Windows, les remplace : c'est la configuration du runner de la gate `okd` ([gate-okd.md](gate-okd.md), étape 1, qui ajoute aussi les noms de CRC à `/etc/hosts`). Dans `%USERPROFILE%\.wslconfig`, puis `wsl --shutdown` :

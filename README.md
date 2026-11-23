@@ -19,7 +19,7 @@ tpNN-theme/
 2. Travaillez dans `starter/`.
 3. Validez : `./verify.sh` (votre travail) ; `./verify.sh solution` montre le résultat attendu.
 
-Les TP se jouent sur **OKD 5.0**, la distribution communautaire d'OpenShift, lancée sur chaque poste par CRC : installation et réglages dans [docs/environnements.md](docs/environnements.md). `verify.sh` s'adapte à vos droits sur le cluster : projet jetable si vous pouvez en créer, votre projet courant sinon.
+Les TP se jouent sur **OKD 5.0**, la distribution communautaire d'OpenShift, lancée par CRC sur chaque poste (AlmaLinux, 64 Go) : installation et réglages dans [docs/environnements.md](docs/environnements.md). `verify.sh` s'adapte à vos droits sur le cluster : projet jetable si vous pouvez en créer, votre projet courant sinon.
 
 ## Le fil rouge : Télémarché
 
