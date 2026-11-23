@@ -38,7 +38,12 @@ build_dir api "$TMP"
 info "Build binaire lancé : ${BUILD:-aucun}"
 attendre_build "$BUILD" 900
 assert_eq "Le build de la version défectueuse échoue" "Failed" "$BUILD_PHASE"
-assert_eq "C'est le hook post-commit qui l'arrête" "PostCommitHookFailed" "$(jp "build/$BUILD" '{.status.reason}')"
+# OpenShift 4 rapporte PostCommitHookFailed. OKD 5, avec la stratégie Docker,
+# exécute le hook comme dernière étape du build : DockerBuildFailed.
+assert_match "Le build est arrêté (PostCommitHookFailed, ou DockerBuildFailed sous OKD 5)" \
+  '^(PostCommitHookFailed|DockerBuildFailed)$' "$(jp "build/$BUILD" '{.status.reason}')"
+assert_contains "C'est le hook post-commit qui l'arrête : le build a échoué sur le self-test" "self-test : ÉCHEC" \
+  "$(o logs "build/$BUILD" -n "$NS" 2>/dev/null || true)"
 assert_contains "Le journal du build dit pourquoi" "prix invalide" "$(o logs "build/$BUILD" -n "$NS" 2>/dev/null | grep 'self-test' || true)"
 assert_eq "L'image défectueuse n'a pas atteint le registre : api:latest n'a pas bougé" "$EMPREINTE" \
   "$(jp imagestreamtag/api:latest '{.image.metadata.name}')"

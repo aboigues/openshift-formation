@@ -515,6 +515,21 @@ wait_route_http() {
   ok "La Route $r répond sur $path"
 }
 
+# champ_route ROUTE CHEMIN CLÉ ATTENDU [TIMEOUT_S] : interroge la Route jusqu'à
+# ce que la CLÉ du JSON vaille ATTENDU, et écrit la dernière valeur lue. Après
+# une mise à jour sans sonde de disponibilité, les nouveaux pods reçoivent du
+# trafic avant d'avoir fini de démarrer (503) : on leur laisse ce temps.
+champ_route() {
+  local r="$1" path="$2" cle="$3" attendu="$4" timeout="${5:-60}" i=0 v=""
+  while :; do
+    v="$(route_get "$r" "$path" | champ_json "$cle" || true)"
+    [ "$v" = "$attendu" ] && break
+    i=$((i+2)); [ "$i" -ge "$timeout" ] && break
+    sleep 2
+  done
+  printf '%s' "$v"
+}
+
 # svc_get SERVICE PORT CHEMIN [PROJET] : requête HTTP vers un Service, relayée
 # par l'API du cluster (pour ce qui n'a pas de Route).
 svc_get() {

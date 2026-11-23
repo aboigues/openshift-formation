@@ -170,6 +170,10 @@ objects:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
+          # Par défaut, Kubernetes pose dans chaque pod des variables pour chaque
+          # Service du projet. Celui nommé « db » donnerait DB_PORT=tcp://…:5432,
+          # que l'API prendrait pour son numéro de port. On les désactive.
+          enableServiceLinks: false
           # Deux conteneurs dans le pod, l'un après l'autre : migrate crée le
           # schéma, se termine, et seulement alors l'API démarre. La migration
           # est idempotente : chaque pod peut la rejouer sans risque.

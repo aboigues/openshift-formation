@@ -159,6 +159,12 @@ Chaque réponse contient la commande, quel que soit le pod qui répond, et elle 
 </details>
 
 <details>
+<summary><code>migrate</code> : <code>invalid port</code>, avec <code>db:tcp://…:5432</code> dans l'adresse</summary>
+
+Kubernetes pose dans chaque pod des variables qui décrivent les Services du projet : pour le Service `db`, `DB_SERVICE_HOST`, `DB_PORT=tcp://<adresse>:5432`… L'API lit `DB_PORT` comme un numéro de port. `enableServiceLinks: false`, dans la spécification du pod, supprime ces variables : vérifiez qu'il est bien là.
+</details>
+
+<details>
 <summary><code>oc new-app</code> répond <code>already exists</code></summary>
 
 Une instance tourne déjà dans le projet. `../scripts/place-nette.sh` supprime tout ce qu'a créé le modèle, puis relancez.

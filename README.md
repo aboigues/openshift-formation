@@ -29,16 +29,16 @@ La boutique en ligne de Telemach : une vitrine **web**, une **api**, et sa base 
 
 | TP | Module | Sujet | Statut |
 |----|--------|-------|--------|
-| [TP01](tp01-deployer-gerer/) | 1 | Déployer et gérer : `oc new-app`, Route HTTPS, configuration, mise à jour, conversion d'une DeploymentConfig | écrit ¹ |
-| [TP02](tp02-concevoir-image/) | 2 | Concevoir une image : UID arbitraire, groupe 0, étapes multiples, arrêt propre | écrit ¹ ² |
-| [TP03](tp03-registre-droits/) | 3 | Registre et droits : ImageStream, promotion, partage entre projets, registre externe | écrit ¹ |
-| [TP04](tp04-build-hooks/) | 4 | Builds : BuildConfig, déclencheurs, build binaire, hook post-commit | écrit ¹ ² |
-| [TP05](tp05-personnaliser-s2i/) | 5 | Source-to-Image : scripts dans le dépôt, image de construction sur mesure | écrit ¹ ² |
-| [TP06](tp06-modele-multi-conteneurs/) | 6 | Modèle à plusieurs conteneurs : Template, paramètres générés, PostgreSQL persistant, conteneur d'initialisation | écrit ¹ ² |
-| [TP07](tp07-sante-strategies/) | 7 | Santé et stratégies : sondes de démarrage, de disponibilité et de vie, mise à jour sans coupure, PodDisruptionBudget, canari par la Route | écrit ¹ ² |
-| [TP08](tp08-integrer-migrer/) | 8 | Intégrer et migrer : Télécaisse (Jakarta EE) construite par `wildfly-s2i`, base restée dans le SI (`ExternalName`), Secret, appel à Télémarché | écrit ¹ ² |
+| [TP01](tp01-deployer-gerer/) | 1 | Déployer et gérer : `oc new-app`, Route HTTPS, configuration, mise à jour, conversion d'une DeploymentConfig | validé ¹ |
+| [TP02](tp02-concevoir-image/) | 2 | Concevoir une image : UID arbitraire, groupe 0, étapes multiples, arrêt propre | validé ¹ ² |
+| [TP03](tp03-registre-droits/) | 3 | Registre et droits : ImageStream, promotion, partage entre projets, registre externe | validé ¹ |
+| [TP04](tp04-build-hooks/) | 4 | Builds : BuildConfig, déclencheurs, build binaire, hook post-commit | validé ¹ ² |
+| [TP05](tp05-personnaliser-s2i/) | 5 | Source-to-Image : scripts dans le dépôt, image de construction sur mesure | validé ¹ ² |
+| [TP06](tp06-modele-multi-conteneurs/) | 6 | Modèle à plusieurs conteneurs : Template, paramètres générés, PostgreSQL persistant, conteneur d'initialisation | validé ¹ ² |
+| [TP07](tp07-sante-strategies/) | 7 | Santé et stratégies : sondes de démarrage, de disponibilité et de vie, mise à jour sans coupure, PodDisruptionBudget, canari par la Route | validé ¹ ² |
+| [TP08](tp08-integrer-migrer/) | 8 | Intégrer et migrer : Télécaisse (Jakarta EE) construite par `wildfly-s2i`, base restée dans le SI (`ExternalName`), Secret, appel à Télémarché | validé ¹ ² |
 
-¹ `verify.sh` n'a pas encore été rejoué sur un cluster OKD.
+¹ `verify.sh solution` rejoué avec succès sur CRC 2.65 / OKD 5.0, sous l'utilisateur `developer`, le 23 novembre 2026 (`./scripts/test-all.sh`).
 ² Ce qui se prouve sans cluster (images sous UID arbitraire, prémisses des TP) est rejoué par la CI, job `images`.
 
 ## Les barrières

@@ -18,7 +18,7 @@ Reste un risque : une version qui compile, qui démarre… et qui vend le miel �
 
 ## 🎯 Objectif vérifiable
 
-`./verify.sh` applique vos manifestes, attend le build lancé par le déclencheur, contrôle que le Deployment a reçu l'image construite, puis envoie depuis le poste une **version défectueuse** : son build doit finir `Failed` (`PostCommitHookFailed`), `api:latest` ne doit pas bouger, et l'API doit continuer de répondre.
+`./verify.sh` applique vos manifestes, attend le build lancé par le déclencheur, contrôle que le Deployment a reçu l'image construite, puis envoie depuis le poste une **version défectueuse** : son build doit finir `Failed`, arrêté par le hook, `api:latest` ne doit pas bouger, et l'API doit continuer de répondre.
 
 ---
 
@@ -118,7 +118,7 @@ curl -sk "https://$(oc get route api -o jsonpath='{.spec.host}')/api/products" |
 <details>
 <summary>💡 Vérifie ta prédiction</summary>
 
-Le build est `Failed (PostCommitHookFailed)`. L'image a bien été construite, mais **jamais poussée** : l'empreinte de `api:latest` n'a pas changé, aucun déploiement n'a eu lieu, le miel est toujours à son prix.
+Le build est `Failed`. La raison dépend de la version : `PostCommitHookFailed` sous OpenShift 4 ; sous OKD 5, le hook s'exécute comme dernière étape du build (`RUN /app/api --self-test` dans le journal), d'où `DockerBuildFailed`. L'image a bien été construite, mais **jamais poussée** : l'empreinte de `api:latest` n'a pas changé, aucun déploiement n'a eu lieu, le miel est toujours à son prix.
 </details>
 
 ## Étape 6 — Validez
