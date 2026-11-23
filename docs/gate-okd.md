@@ -69,10 +69,29 @@ gh api -X POST repos/aboigues/openshift-formation/branches/main/protection/requi
 
 ## Au quotidien
 
+- Pendant un passage, le workflow empêche Windows de se mettre en veille pour inactivité (`scripts/eveil-windows.ps1`). Capot fermé, la veille l'emporte : laissez le portable ouvert, ou réglez Windows pour qu'il ne se mette pas en veille sur secteur.
+
 - Avant de pousser une PR qui touche les TP : `crc start`. Le check part tout seul.
 - Le check a échoué parce que CRC était arrêté : `crc start`, puis **Re-run jobs** dans la PR.
 - `main` a bougé pendant que la PR attendait : la protection exige une branche à jour. *Update branch*, et la répétition repart.
 - Retirer le runner : `./scripts/installer-runner-okd.sh --retirer`.
+
+## Suivre le runner
+
+```bash
+gh api repos/aboigues/openshift-formation/actions/runners --jq '.runners[] | "\(.name) \(.status) occupé=\(.busy)"'
+gh run list --workflow okd.yml -L 5            # les derniers passages ; gh run watch pour en suivre un
+systemctl status 'actions.runner.*' --no-pager # le service, dans WSL
+journalctl -u 'actions.runner.*' -f            # Connected, Running job, completed
+tail -f ~/actions-runner-okd/_diag/Worker_*.log   # le job en cours, en détail
+```
+
+| Symptôme | Cause probable | Que faire |
+|---|---|---|
+| runner *Offline* | WSL arrêté (aucun terminal ouvert), Windows en veille | ouvrir un terminal WSL, réveiller le poste |
+| job *queued*, runner *Idle* | attribution du job par GitHub | patienter une à deux minutes |
+| « lost communication with the server » | veille de Windows, coupure réseau | **Re-run jobs** |
+| échec à « CRC joignable ? » | CRC arrêté, ou nom absent de `/etc/hosts` | `crc start`, ou étape 1 |
 
 ## Sécurité
 

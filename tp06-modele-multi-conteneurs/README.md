@@ -71,7 +71,7 @@ Complétez `starter/telemarche.yaml` (`# TODO 1` à `8`) :
 | TODO | Ce qu'il faut savoir |
 |---|---|
 | 1, 2 | un paramètre peut être **généré** : `generate` désigne le générateur, `from` son motif, une expression régulière simplifiée |
-| 3 | deux pods ne peuvent pas monter ensemble un volume `ReadWriteOnce` : l'ancien doit s'arrêter avant que le nouveau démarre |
+| 3 | le volume est en `ReadWriteOncePod` : un seul pod à la fois. Le nouveau pod ne peut démarrer qu'une fois l'ancien arrêté, et la stratégie de déploiement doit le permettre |
 | 4 | `secretKeyRef` relie UNE variable à UNE clé d'un Secret, quand les noms diffèrent |
 | 5 | le volume du pod renvoie au `PersistentVolumeClaim` du modèle |
 | 6 | `${NOM}` produit une chaîne ; `${{NOM}}` insère la valeur telle quelle, ce qu'exige un nombre |
@@ -162,6 +162,12 @@ Chaque réponse contient la commande, quel que soit le pod qui répond, et elle 
 <summary><code>migrate</code> : <code>invalid port</code>, avec <code>db:tcp://…:5432</code> dans l'adresse</summary>
 
 Kubernetes pose dans chaque pod des variables qui décrivent les Services du projet : pour le Service `db`, `DB_SERVICE_HOST`, `DB_PORT=tcp://<adresse>:5432`… L'API lit `DB_PORT` comme un numéro de port. `enableServiceLinks: false`, dans la spécification du pod, supprime ces variables : vérifiez qu'il est bien là.
+</details>
+
+<details>
+<summary>Après <code>oc delete pod -l app=db</code>, le nouveau pod reste <code>Pending</code> quelques secondes</summary>
+
+C'est voulu : `oc describe pod` dit que le volume `ReadWriteOncePod` est encore utilisé par l'ancien pod, qui s'arrête. Avec `ReadWriteOnce`, sur un cluster d'un seul nœud comme CRC, le nouveau pod démarrerait tout de suite, et deux PostgreSQL ouvriraient les mêmes fichiers.
 </details>
 
 <details>

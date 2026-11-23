@@ -79,6 +79,19 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Un poste Windows en veille coupe le réseau : le runner perd GitHub en
+      # plein passage. On l'empêche de s'endormir, le temps du job seulement
+      # (le processus est arrêté avec le job, ou au bout de 2 h).
+      - name: Poste Windows éveillé pendant le passage
+        run: |
+          if command -v powershell.exe >/dev/null 2>&1 && command -v wslpath >/dev/null 2>&1; then
+            nohup powershell.exe -NoProfile -ExecutionPolicy Bypass \
+              -File "$(wslpath -w scripts/eveil-windows.ps1)" 7200 > "$RUNNER_TEMP/eveil.log" 2>&1 &
+            sleep 5; cat "$RUNNER_TEMP/eveil.log"
+          else
+            echo "Pas de Windows sous ce runner : rien à faire."
+          fi
+
       - name: CRC joignable ?
         run: |
           if curl -sk -m 10 "$OKD_API/healthz" | grep -qx ok; then exit 0; fi
