@@ -109,7 +109,7 @@ jobs:
           [ -n "$OKD_PASSWORD" ] || { echo "::error::Secret OKD_PASSWORD absent (Actions, et Dependabot pour ses PR)."; exit 1; }
           export KUBECONFIG="$RUNNER_TEMP/kubeconfig"
           echo "KUBECONFIG=$KUBECONFIG" >> "$GITHUB_ENV"
-          oc login -u developer -p "$OKD_PASSWORD" "$OKD_API" --insecure-skip-tls-verify=true >/dev/null
+          oc login -u developer -p "$OKD_PASSWORD" "$OKD_API" --insecure-skip-tls-verify=true
           oc whoami
           oc version | tail -2
 
