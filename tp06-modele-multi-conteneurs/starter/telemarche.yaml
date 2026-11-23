@@ -1,0 +1,321 @@
+# Télémarché en un seul objet : un modèle (Template) qui décrit la vitrine,
+# l'API, la base PostgreSQL et ce qui les relie. On l'instancie autant de fois
+# qu'on veut, avec ses propres paramètres :
+#   oc process -f telemarche.yaml -p API_REPLICAS=3 | oc apply -f -
+#   oc create -f telemarche.yaml ; oc new-app --template=telemarche
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: telemarche
+  labels:
+    app.kubernetes.io/part-of: telemarche
+  annotations:
+    description: "Télémarché : vitrine, API (2 réplicas) et base PostgreSQL persistante."
+    tags: "telemarche,postgresql"
+    openshift.io/display-name: Télémarché
+# Posé sur CHAQUE objet créé par le modèle : place-nette.sh les retrouve tous.
+labels:
+  app.kubernetes.io/part-of: telemarche
+  template: telemarche
+
+parameters:
+  - name: APP_VERSION
+    description: Version des images telemarche-api et telemarche-web
+    value: "1.1"
+  - name: API_REPLICAS
+    description: Nombre de pods de l'API
+    value: "2"
+  - name: DB_USER
+    description: Utilisateur de la base
+    value: telemarche
+  - name: DB_PASSWORD
+    description: Mot de passe de la base (tiré au hasard s'il n'est pas donné)
+    generate: ______                  # TODO 1 : le générateur de valeurs aléatoires
+    from: "______"                    # TODO 2 : 16 caractères parmi a-z, A-Z et 0-9
+  - name: DB_NAME
+    value: telemarche
+  - name: DB_VOLUME_SIZE
+    description: Taille du volume de la base
+    value: 1Gi
+  - name: POSTGRESQL_IMAGE
+    description: Image PostgreSQL (sclorg, CentOS Stream 10 ; tourne sous un UID arbitraire)
+    value: quay.io/sclorg/postgresql-18-c10s:20261118
+
+objects:
+  # Les identifiants, une seule fois : la base et l'API les lisent ici. Les
+  # clés portent les noms de variables qu'attend l'API.
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      name: db-credentials
+    stringData:
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+
+  # Les données de la base survivent au pod.
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: db-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: ${DB_VOLUME_SIZE}
+
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: db
+      labels:
+        app: db
+    spec:
+      replicas: 1
+      # Un volume ReadWriteOnce, une base : jamais deux pods à la fois.
+      # RollingUpdate démarrerait le nouveau avant d'arrêter l'ancien.
+      strategy:
+        type: ______                  # TODO 3
+      selector:
+        matchLabels:
+          app: db
+      template:
+        metadata:
+          labels:
+            app: db
+            app.kubernetes.io/part-of: telemarche
+        spec:
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: postgresql
+              image: ${POSTGRESQL_IMAGE}
+              # L'image sclorg attend d'autres noms : on relie chaque variable
+              # à une clé du Secret.
+              env:
+                - name: POSTGRESQL_USER
+                  valueFrom:
+                    secretKeyRef: {name: db-credentials, key: DB_USER}
+                - name: POSTGRESQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef: {name: ______, key: ______}   # TODO 4 : le Secret, puis la clé
+                - name: POSTGRESQL_DATABASE
+                  valueFrom:
+                    secretKeyRef: {name: db-credentials, key: DB_NAME}
+              ports:
+                - name: postgresql
+                  containerPort: 5432
+              # Le script de l'image : vrai quand PostgreSQL accepte des connexions.
+              readinessProbe:
+                exec:
+                  command: ["/usr/libexec/check-container"]
+                periodSeconds: 5
+                timeoutSeconds: 5
+              # Pas de readOnlyRootFilesystem : au démarrage, l'image écrit dans
+              # /var/lib/pgsql (fichier passwd de l'utilisateur arbitraire).
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  memory: 512Mi
+              volumeMounts:
+                - name: data
+                  mountPath: /var/lib/pgsql/data
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: ______     # TODO 5
+
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: db
+      labels:
+        app: db
+    spec:
+      selector:
+        app: db
+      ports:
+        - name: postgresql
+          port: 5432
+          targetPort: postgresql
+
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: api
+      labels:
+        app: api
+    spec:
+      # ${{…}} : la valeur est insérée telle quelle, sans guillemets. replicas
+      # attend un nombre, pas la chaîne "2".
+      replicas: ______                # TODO 6 : le paramètre API_REPLICAS, en nombre
+      selector:
+        matchLabels:
+          app: api
+      template:
+        metadata:
+          labels:
+            app: api
+            app.kubernetes.io/part-of: telemarche
+        spec:
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          # Par défaut, Kubernetes pose dans chaque pod des variables pour chaque
+          # Service du projet. Celui nommé « db » donnerait DB_PORT=tcp://…:5432,
+          # que l'API prendrait pour son numéro de port. On les désactive.
+          enableServiceLinks: false
+          # Deux conteneurs dans le pod, l'un après l'autre : migrate crée le
+          # schéma, se termine, et seulement alors l'API démarre. La migration
+          # est idempotente : chaque pod peut la rejouer sans risque.
+          initContainers:
+            - name: migrate
+              image: docker.io/telemachlearning/telemarche-api:${APP_VERSION}
+              command: ["______"]       # TODO 7 : le programme de migration de l'image
+              # Toutes les clés du Secret deviennent des variables : DB_USER,
+              # DB_PASSWORD, DB_NAME. Il ne manque que l'adresse de la base.
+              envFrom:
+                - secretRef:
+                    name: db-credentials
+              env:
+                - name: DB_HOST
+                  value: db
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+                limits:
+                  memory: 64Mi
+          containers:
+            - name: api
+              image: docker.io/telemachlearning/telemarche-api:${APP_VERSION}
+              envFrom:
+                - ______:                   # TODO 8 : toutes les clés d'un Secret…
+                    name: ______            # … lequel ?
+              env:
+                - name: DB_HOST
+                  value: db
+              ports:
+                - name: http
+                  containerPort: 8080
+              readinessProbe:
+                httpGet:
+                  path: /ready
+                  port: http
+                periodSeconds: 2
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+                limits:
+                  memory: 64Mi
+
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: api
+      labels:
+        app: api
+    spec:
+      selector:
+        app: api
+      ports:
+        - name: http
+          port: 8080
+          targetPort: http
+
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: web
+      labels:
+        app: web
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: web
+      template:
+        metadata:
+          labels:
+            app: web
+            app.kubernetes.io/part-of: telemarche
+        spec:
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: web
+              image: docker.io/telemachlearning/telemarche-web:${APP_VERSION}
+              env:
+                - name: API_URL
+                  value: http://api:8080
+              ports:
+                - name: http
+                  containerPort: 8080
+              readinessProbe:
+                httpGet:
+                  path: /ready
+                  port: http
+                periodSeconds: 2
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 20m
+                  memory: 16Mi
+                limits:
+                  memory: 32Mi
+
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: web
+      labels:
+        app: web
+    spec:
+      selector:
+        app: web
+      ports:
+        - name: http
+          port: 8080
+          targetPort: http
+
+  - apiVersion: route.openshift.io/v1
+    kind: Route
+    metadata:
+      name: web
+      labels:
+        app: web
+    spec:
+      to:
+        kind: Service
+        name: web
+      port:
+        targetPort: http
+      tls:
+        termination: edge
+        insecureEdgeTerminationPolicy: Redirect

@@ -1,0 +1,23 @@
+<!--
+  L'ancienne installation de Télécaisse : un WildFly installé à la main sur le
+  serveur caisse01, mis à jour une fois par an. Extrait de
+  /opt/wildfly/standalone/configuration/standalone.xml.
+
+  Ce qui ne peut pas partir tel quel sur OpenShift :
+    - l'adresse IP de la base, en dur ;
+    - le mot de passe, en clair dans la configuration du serveur ;
+    - un pilote PostgreSQL copié à la main dans modules/ ;
+    - un serveur complet (profil « full »), dont la caisse n'utilise qu'une partie.
+-->
+<subsystem xmlns="urn:jboss:domain:datasources:7.0">
+    <datasources>
+        <datasource jndi-name="java:jboss/datasources/PostgreSQLDS" pool-name="PostgreSQLDS">
+            <connection-url>jdbc:postgresql://10.12.0.7:5432/caisse</connection-url>
+            <driver>postgresql</driver>
+            <security user-name="caisse" password="mot-de-passe-en-clair"/>
+        </datasource>
+        <drivers>
+            <driver name="postgresql" module="org.postgresql"/>
+        </drivers>
+    </datasources>
+</subsystem>

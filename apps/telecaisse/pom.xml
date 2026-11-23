@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Télécaisse : la caisse des magasins Telemach, une application Jakarta EE
+  qui tournait sur un WildFly installé à la main. Sur OpenShift, l'image
+  wildfly-s2i lance « mvn package » : le plugin wildfly-maven-plugin y
+  assemble un serveur réduit aux couches utiles (Galleon), avec l'application
+  déployée à la racine. Le serveur produit est dans target/server.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>fr.telemach</groupId>
+  <artifactId>telecaisse</artifactId>
+  <version>2.0</version>
+  <packaging>war</packaging>
+
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <failOnMissingWebXml>false</failOnMissingWebXml>
+    <version.jakartaee>11.0.0</version.jakartaee>
+    <version.wildfly>42.0.0.Final</version.wildfly>
+    <version.wildfly.datasources>11.5.0.Final</version.wildfly.datasources>
+    <version.wildfly.plugin>6.2.0.Final</version.wildfly.plugin>
+    <version.maven.compiler>3.15.0</version.maven.compiler>
+    <version.maven.war>3.5.1</version.maven.war>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>jakarta.platform</groupId>
+      <artifactId>jakarta.jakartaee-api</artifactId>
+      <version>${version.jakartaee}</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>ROOT</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>${version.maven.compiler}</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-war-plugin</artifactId>
+        <version>${version.maven.war}</version>
+      </plugin>
+      <plugin>
+        <groupId>org.wildfly.plugins</groupId>
+        <artifactId>wildfly-maven-plugin</artifactId>
+        <version>${version.wildfly.plugin}</version>
+        <configuration>
+          <feature-packs>
+            <feature-pack>
+              <location>org.wildfly:wildfly-galleon-pack:${version.wildfly}</location>
+            </feature-pack>
+            <!-- Le pilote PostgreSQL et une source de données réglée par
+                 variables d'environnement (POSTGRESQL_*). -->
+            <feature-pack>
+              <location>org.wildfly:wildfly-datasources-galleon-pack:${version.wildfly.datasources}</location>
+            </feature-pack>
+          </feature-packs>
+          <!-- Le serveur ne contient que ce dont l'application a besoin. -->
+          <layers>
+            <layer>jaxrs-server</layer>
+            <layer>postgresql-datasource</layer>
+          </layers>
+          <name>ROOT.war</name>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>package</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

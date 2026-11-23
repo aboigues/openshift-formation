@@ -1,0 +1,45 @@
+# Télécaisse, construite par OpenShift : l'image wildfly-s2i compile le code
+# avec Maven et assemble un WildFly réduit à ce dont la caisse a besoin.
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: telecaisse
+  labels:
+    app: telecaisse
+    app.kubernetes.io/part-of: telecaisse
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: telecaisse
+  labels:
+    app: telecaisse
+    app.kubernetes.io/part-of: telecaisse
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/aboigues/openshift-formation
+      ref: main
+    contextDir: ______                # TODO 1 : le dossier de Télécaisse dans le dépôt
+  strategy:
+    type: ______                      # TODO 2 : la stratégie Source-to-Image
+    sourceStrategy:
+      # L'image de construction WildFly : Maven, un JDK 21, et les scripts S2I
+      # qui provisionnent le serveur décrit dans le pom.xml.
+      from:
+        kind: DockerImage
+        name: ______                  # TODO 3 : quay.io/wildfly/wildfly-s2i, version 2.3.0, JDK 21
+  output:
+    to:
+      kind: ImageStreamTag
+      name: telecaisse:latest
+  # Maven et le provisionnement du serveur sont gourmands.
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      memory: 1536Mi
+  triggers:
+    - type: ConfigChange

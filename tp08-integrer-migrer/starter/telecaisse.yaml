@@ -1,0 +1,125 @@
+# Télécaisse sur OpenShift. Ce qui était écrit en dur dans standalone.xml
+# vient maintenant de l'environnement : la base par un nom DNS, ses
+# identifiants par un Secret, les prix par l'API de Télémarché.
+
+# La base reste dans le système d'information. Ce Service ne choisit aucun pod :
+# il donne un nom stable, dans le projet, à une adresse extérieure. Le jour où
+# la base déménage, on change cette ligne, pas l'application.
+apiVersion: v1
+kind: Service
+metadata:
+  name: caisse-db
+  labels:
+    app.kubernetes.io/part-of: telecaisse
+spec:
+  type: ______                        # TODO 4 : un Service qui n'est qu'un nom DNS
+  # Remplacez telecaisse-si par le projet qu'a affiché outils/base-si.sh. Hors
+  # du TP, ce serait le nom DNS de la base : pg-caisse.si.telemach.example.
+  externalName: ______                # TODO 5 : l'adresse qu'a affichée outils/base-si.sh
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telecaisse
+  labels:
+    app: telecaisse
+    app.kubernetes.io/part-of: telecaisse
+  annotations:
+    image.openshift.io/triggers: >-
+      [{"from":{"kind":"ImageStreamTag","name":"telecaisse:latest"},
+        "fieldPath":"spec.template.spec.containers[?(@.name==\"telecaisse\")].image"}]
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: telecaisse
+  template:
+    metadata:
+      labels:
+        app: telecaisse
+        app.kubernetes.io/part-of: telecaisse
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: telecaisse
+          image: telecaisse:latest
+          env:
+            # La source de données de WildFly lit POSTGRESQL_HOST : le nom du
+            # Service ExternalName, résolu en l'adresse de la base.
+            - name: POSTGRESQL_HOST
+              value: ______                 # TODO 6
+            # Les prix ne sont plus copiés chaque nuit : la caisse les demande
+            # à Télémarché, par le nom de son Service.
+            - name: TELEMARCHE_API_URL
+              value: ______                 # TODO 7 : le Service de l'API de Télémarché, port compris
+          # POSTGRESQL_USER, POSTGRESQL_PASSWORD, POSTGRESQL_DATABASE.
+          envFrom:
+            - secretRef:
+                name: ______                # TODO 8 : le Secret créé à l'étape 2
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /api/sante/vivant
+              port: http
+            periodSeconds: 3
+            failureThreshold: 40
+          readinessProbe:
+            httpGet:
+              path: ______                  # TODO 9 : la sonde qui interroge la base (voir apps/telecaisse/README.md)
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/sante/vivant
+              port: http
+            periodSeconds: 10
+          # WildFly écrit dans /opt/server/standalone (tmp, data, log) : pas de
+          # système de fichiers en lecture seule.
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          # La JVM prend 80 % de la limite pour son tas (MaxRAMPercentage).
+          resources:
+            requests:
+              cpu: 100m
+              memory: 384Mi
+            limits:
+              memory: 768Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: telecaisse
+  labels:
+    app: telecaisse
+    app.kubernetes.io/part-of: telecaisse
+spec:
+  selector:
+    app: telecaisse
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: telecaisse
+  labels:
+    app: telecaisse
+    app.kubernetes.io/part-of: telecaisse
+spec:
+  to:
+    kind: Service
+    name: telecaisse
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

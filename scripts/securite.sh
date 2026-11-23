@@ -7,6 +7,7 @@
 #   2. Manifestes et Dockerfile : aucune faute de configuration HIGH ou CRITICAL
 #      dans ce qui est déployé (solution/, outils/, apps/, builders/). Les
 #      dossiers heritage/ et pannes/ sont fautifs exprès : ils ne sont pas scannés.
+#      Les rares exceptions voulues sont dans .trivyignore.yaml, justifiées.
 #   3. Code Go : aucune vulnérabilité atteignable dans une dépendance. Celles de
 #      la bibliothèque standard dépendent de l image go-toolset de Red Hat :
 #      elles sont signalées, sans bloquer.
@@ -39,7 +40,7 @@ chmod -R a+rX "$tmp"
 
 if trivy fs --quiet --scanners secret --exit-code 1 /w/depot; then ok "Aucun secret dans le dépôt"; else ko "Secret détecté dans le dépôt"; fi
 
-if trivy config --quiet --severity HIGH,CRITICAL --exit-code 1 /w/config; then
+if trivy config --quiet --severity HIGH,CRITICAL --ignorefile /w/depot/.trivyignore.yaml --exit-code 1 /w/config; then
   ok "Manifestes et Dockerfile : 0 faute HIGH/CRITICAL"
 else ko "Manifestes ou Dockerfile : fautes HIGH/CRITICAL"; fi
 

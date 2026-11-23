@@ -1,0 +1,102 @@
+# La version 1.1 en canari : un pod à côté des pods 1.0, qui reçoit une
+# requête sur dix. Si elle se comporte bien, on augmente sa part ; sinon, on
+# remet son poids à 0, sans redéployer quoi que ce soit.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-canari
+  labels:
+    app: api-canari
+    app.kubernetes.io/part-of: telemarche
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-canari
+  template:
+    metadata:
+      labels:
+        app: api-canari
+        app.kubernetes.io/part-of: telemarche
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: docker.io/telemachlearning/telemarche-api:1.1
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-canari
+  labels:
+    app: api-canari
+    app.kubernetes.io/part-of: telemarche
+spec:
+  selector:
+    app: api-canari
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+# Une Route, deux Services : le routeur répartit selon les poids (90 + 10).
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: api
+  labels:
+    app: api
+    app.kubernetes.io/part-of: telemarche
+  annotations:
+    # Sans cela, le routeur colle chaque navigateur à un pod (cookie) : on ne
+    # verrait jamais le canari depuis le même poste.
+    haproxy.router.openshift.io/disable_cookies: "true"
+    haproxy.router.openshift.io/balance: roundrobin
+spec:
+  to:
+    kind: Service
+    name: api
+    weight: 90
+  alternateBackends:
+    - kind: Service
+      name: api-canari
+      weight: 10
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

@@ -40,7 +40,21 @@ Le préréglage ne change qu'à la création : sur une instance existante, `crc 
 
 L'utilisateur `developer` crée ses propres projets : `verify.sh` travaille donc dans un projet jetable. Travaillez sous `developer`, pas sous `kubeadmin` : les TP montrent ce qu'un développeur peut faire.
 
-Les réglages de mémoire et de disque ci-dessus sont une estimation. Ils seront confirmés quand les TP auront été rejoués sur CRC.
+Ces réglages ont suffi à rejouer les huit TP (CRC 2.65, OKD 5.0, le 23 novembre 2026). Hyper-V exige que les 14 Go soient **libres** au démarrage de la machine virtuelle : fermez Docker Desktop et les applications gourmandes, et plafonnez WSL (ci-dessous).
+
+### Sous Windows
+
+- CRC publie l'API sur `127.0.0.1:6443` et le routeur sur les ports 80 et 443 de Windows. Chaque Route créée est ajoutée au fichier `hosts` de Windows : le navigateur l'ouvre directement.
+- Depuis WSL, en réseau NAT (le défaut), ni `api.crc.testing` ni les Routes ne sont joignables. Les TP y ont été rejoués avec deux contournements : le `oc.exe` de CRC (`%USERPROFILE%\.crc\bin\oc`) appelé depuis WSL, et `curl` envoyant les noms `*.apps-crc.testing` vers l'adresse de Windows. Le réseau « miroir » de WSL, où `127.0.0.1` désigne Windows, devrait les rendre inutiles (pas encore rejoué). Dans `%USERPROFILE%\.wslconfig`, puis `wsl --shutdown` :
+
+  ```ini
+  [wsl2]
+  memory=6GB
+  networkingMode=mirrored
+  dnsTunneling=true
+  ```
+
+- Un build envoyé depuis Windows (`oc start-build --from-dir`) perd le droit d'exécution des fichiers. Les TP en tiennent compte : S2I le rend aux scripts `.s2i/bin`, et l'image historique du TP02 le pose elle-même.
 
 ## Avant le premier TP : contrôler le cluster
 
@@ -77,8 +91,8 @@ Par défaut, les builds de `verify.sh` clonent **votre copie de travail**, servi
 
 - créer des Deployments, des Routes, des ImageStreams et des BuildConfigs dans son projet (rôle `admin` ou `edit`) ;
 - lancer des builds de stratégie **Docker** et **Source** ;
-- sortir vers `registry.access.redhat.com` et `docker.io`. Les images UBI s'y tirent sans compte : un OKD n'a pas de clé d'accès à `registry.redhat.io`, et les TP ne s'en servent pas ;
-- environ 4 Go de mémoire et 2 processeurs de quota par projet.
+- sortir vers `registry.access.redhat.com`, `docker.io` et `quay.io` (PostgreSQL et WildFly, TP06 et TP08), ainsi que `repo1.maven.org` (build Maven du TP08). Ces images se tirent sans compte : un OKD n'a pas de clé d'accès à `registry.redhat.io`, et les TP ne s'en servent pas ;
+- environ 4 Go de mémoire et 2 processeurs de quota par projet. Le build WildFly du TP08 prend à lui seul jusqu'à 1,5 Go.
 
 Docker Hub limite les téléchargements anonymes **par adresse IP**. Dans une salle où tous les postes sortent par la même adresse, faites tirer les images `telemachlearning/*` une fois par poste avant la session, ou prévoyez un miroir.
 

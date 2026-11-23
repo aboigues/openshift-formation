@@ -7,6 +7,8 @@ FROM registry.access.redhat.com/ubi10/go-toolset:10.3
 USER root
 WORKDIR /app
 COPY . .
+# Envoyé depuis Windows, le script arrive sans droit d'exécution : on le lui donne.
+RUN chmod 755 /app/demarrer.sh
 RUN go build -o /app/api ./cmd/api
 RUN mkdir /app/journal
 ENV PORT=80

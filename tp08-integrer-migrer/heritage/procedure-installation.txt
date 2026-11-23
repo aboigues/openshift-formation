@@ -1,0 +1,11 @@
+PROCÉDURE D'INSTALLATION DE TÉLÉCAISSE (version 1.4, serveur caisse01)
+
+1. Arrêter WildFly : systemctl stop wildfly            (les caisses sont coupées)
+2. Copier telecaisse.war dans /opt/wildfly/standalone/deployments/
+3. Chaque nuit, le script prix.sh copie le fichier des prix de Télémarché
+   dans /opt/caisse/prix.csv. S'il échoue, la caisse vend aux prix de la veille.
+4. Vérifier standalone.xml (adresse de la base, mot de passe)
+5. Démarrer WildFly : systemctl start wildfly
+6. Passer une vente de test au magasin 1.
+
+Retour arrière : recopier l'ancien .war et recommencer.

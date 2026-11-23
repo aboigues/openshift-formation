@@ -39,11 +39,11 @@ assert_eq "L'API n'est pas publiée : aucune Route ne la vise" "" \
 step "Mise à jour, puis retour arrière"
 o set image deployment/api -n "$NS" "api=$V11" >/dev/null
 o rollout status deployment/api -n "$NS" --timeout=240s >/dev/null 2>&1 || true
-assert_eq "Après oc set image, l'API répond en 1.1" "1.1" "$(route_get web /api/info | champ_json version || true)"
+assert_eq "Après oc set image, l'API répond en 1.1" "1.1" "$(champ_route web /api/info version 1.1)"
 o rollout undo deployment/api -n "$NS" >/dev/null 2>&1 || true
 o rollout status deployment/api -n "$NS" --timeout=240s >/dev/null 2>&1 || true
 assert_eq "oc rollout undo ramène la 1.0" "$V10" "$(jp deployment/api '{.spec.template.spec.containers[0].image}')"
-assert_eq "Après le retour arrière, l'API répond en 1.0" "1.0" "$(route_get web /api/info | champ_json version || true)"
+assert_eq "Après le retour arrière, l'API répond en 1.0" "1.0" "$(champ_route web /api/info version 1.0)"
 
 step "La DeploymentConfig convertie"
 wait_rollout stock 240
