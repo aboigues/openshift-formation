@@ -34,6 +34,7 @@ assert_match "Le mot de passe généré fait 16 caractères alphanumériques" '^
 assert_eq "Tous les objets portent le label du modèle (Secret compris)" "telemarche" \
   "$(jp secret/db-credentials '{.metadata.labels.template}')"
 assert_eq "La base se redéploie en Recreate (un seul pod sur le volume)" "Recreate" "$(jp deployment/db '{.spec.strategy.type}')"
+assert_eq "Le volume n'accepte qu'un pod à la fois (ReadWriteOncePod)" "ReadWriteOncePod" "$(jp pvc/db-data '{.spec.accessModes[0]}')"
 assert_eq "La base monte le volume db-data" "db-data" \
   "$(jp deployment/db '{.spec.template.spec.volumes[?(@.name=="data")].persistentVolumeClaim.claimName}')"
 
